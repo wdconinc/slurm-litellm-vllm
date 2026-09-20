@@ -5,7 +5,7 @@ echo "======================================================"
 echo " Proxy Feature Verification Suite"
 echo "======================================================"
 
-ENDPOINT_FILE="$HOME/litellm/etc/endpoint.env"
+ENDPOINT_FILE="/home/wdconinc/git/slurm-litellm-vllm/run/endpoint.env"
 if [ ! -f "$ENDPOINT_FILE" ]; then
     echo "❌ ERROR: Proxy endpoint not found at $ENDPOINT_FILE"
     echo "Please start the server first using ./bin/start.sh and wait for initialization."

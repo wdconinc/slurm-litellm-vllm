@@ -91,7 +91,7 @@ Point the workers to the login node where the LiteLLM proxy is running. Assuming
 #SBATCH --time=02:00:00      # Job duration
 
 # Source the dynamic endpoint published by the decentralized proxy
-source ~/litellm/etc/endpoint.env
+source run/endpoint.env
 
 echo "Worker ${SLURM_ARRAY_TASK_ID} starting Lean4 compilation..."
 

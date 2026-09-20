@@ -10,7 +10,10 @@ import atexit
 
 # Global list of child processes to clean up
 PROCESSES = []
-ENDPOINT_FILE = os.path.expanduser("~/litellm/etc/endpoint.env")
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+RUN_DIR = os.path.join(REPO_ROOT, "run")
+os.makedirs(RUN_DIR, exist_ok=True)
+ENDPOINT_FILE = os.path.join(RUN_DIR, "endpoint.env")
 
 def cleanup():
     print("\n[Orchestrator] Cleaning up resources...")
@@ -171,8 +174,7 @@ def main():
     
     # LiteLLM Configuration
     job_id = os.getenv("SLURM_JOB_ID", "local")
-    os.makedirs(os.path.expanduser("~/litellm/etc"), exist_ok=True)
-    yaml_path = os.path.expanduser(f"~/litellm/etc/dynamic_litellm_config_{job_id}.yaml")
+    yaml_path = os.path.join(RUN_DIR, f"dynamic_litellm_config_{job_id}.yaml")
     
     litellm_config = {
         "model_list": [
@@ -207,8 +209,6 @@ def main():
         fallback = os.path.join(venv_bin, "litellm")
         if os.path.exists(fallback):
             litellm_cmd = fallback
-        elif os.path.exists(os.path.expanduser("~/litellm/bin/litellm")):
-            litellm_cmd = os.path.expanduser("~/litellm/bin/litellm")
         else:
             print("[Orchestrator] ERROR: Could not find 'litellm' executable.")
             sys.exit(1)

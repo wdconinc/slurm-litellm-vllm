@@ -27,7 +27,7 @@ pip install --upgrade pip > /dev/null
 pip install --upgrade -r "$BASE_REQS"
 
 # 4. Validate against the live LLM endpoint
-ENDPOINT_FILE="$HOME/litellm/etc/endpoint.env"
+ENDPOINT_FILE="/home/wdconinc/git/slurm-litellm-vllm/run/endpoint.env"
 if [ ! -f "$ENDPOINT_FILE" ]; then
     echo ""
     echo "⚠️ WARNING: Cannot validate performance!"

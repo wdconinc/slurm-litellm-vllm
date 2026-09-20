@@ -21,7 +21,7 @@ Each job:
    ```
 
 2. **Wait for Initialization**:
-   Wait until `start.sh` confirms the server is healthy and `~/litellm/etc/endpoint.env` is created.
+   Wait until `start.sh` confirms the server is healthy and `run/endpoint.env` is created.
 
 3. **Submit the Array**:
    Submit the job array:

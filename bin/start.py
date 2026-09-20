@@ -71,7 +71,7 @@ def submit_job(model_key):
     return job_id
 
 def monitor_job(job_id):
-    endpoint_file = os.path.expanduser("~/litellm/etc/endpoint.env")
+    endpoint_file = os.path.join(os.path.dirname(__file__), "..", "run", "endpoint.env")
     if os.path.exists(endpoint_file):
         os.remove(endpoint_file)
         

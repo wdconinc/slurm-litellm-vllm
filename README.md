@@ -63,7 +63,7 @@ To reliably access the endpoint from your local machine, use the provided local 
 ./bin/connect.sh your_username@grex.hpc.umanitoba.ca
 ```
 
-*(Alternatively, for a manual setup, you can check `~/litellm/etc/endpoint.env` on the login node and manually run: `ssh -L 4000:<INTERNAL_IP>:4000 your_username@grex.hpc.umanitoba.ca`)*
+*(Alternatively, for a manual setup, you can check `run/endpoint.env` on the login node and manually run: `ssh -L 4000:<INTERNAL_IP>:4000 your_username@grex.hpc.umanitoba.ca`)*
 
 You can now use your local `localhost:4000` as an OpenAI-compatible API base in your applications, scripts, or IDEs:
 

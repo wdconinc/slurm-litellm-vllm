@@ -8,7 +8,7 @@ def client():
     api_base = os.getenv("OPENAI_API_BASE")
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_base or not api_key:
-        pytest.fail("Environment variables OPENAI_API_BASE and OPENAI_API_KEY must be set. Source ~/litellm/etc/endpoint.env first.")
+        pytest.fail("Environment variables OPENAI_API_BASE and OPENAI_API_KEY must be set. Source run/endpoint.env first.")
     
     return OpenAI()
 

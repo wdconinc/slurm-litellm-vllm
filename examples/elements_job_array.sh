@@ -7,7 +7,7 @@
 #SBATCH --output=element_job_%A_%a.log
 
 # 1. Load the centralized LLM endpoint published by bin/start.sh
-ENDPOINT_FILE="$HOME/litellm/etc/endpoint.env"
+ENDPOINT_FILE="/home/wdconinc/git/slurm-litellm-vllm/run/endpoint.env"
 
 if [ ! -f "$ENDPOINT_FILE" ]; then
     echo "ERROR: Endpoint file $ENDPOINT_FILE not found."

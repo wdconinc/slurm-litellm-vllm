@@ -16,8 +16,6 @@ module load singularity
 # Load environment variables from .env if present
 if [ -f "${SLURM_SUBMIT_DIR}/.env" ]; then
     export $(grep -v '^#' "${SLURM_SUBMIT_DIR}/.env" | xargs)
-elif [ -f "$HOME/litellm/etc/.env" ]; then
-    export $(grep -v '^#' "$HOME/litellm/etc/.env" | xargs)
 fi
 
 # Pass Hugging Face Token to Singularity if defined

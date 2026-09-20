@@ -22,8 +22,8 @@ def test_ray_multi_node_cluster():
     # Extract job ID (e.g. "Submitted batch job 12345")
     job_id = result.stdout.strip().split()[-1]
     print(f"Job {job_id} submitted successfully.")
-    
-    endpoint_file = os.path.expanduser("~/litellm/etc/endpoint.env")
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    endpoint_file = os.path.join(repo_root, "run", "endpoint.env")
     
     # Remove old endpoint file so we can wait for the new one
     if os.path.exists(endpoint_file):

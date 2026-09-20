@@ -21,7 +21,7 @@ Each job:
    ```
 
 2. **Wait for Initialization**:
-   Wait until `start.sh` confirms the server is healthy and `~/litellm/etc/endpoint.env` is created.
+   Wait until `start.sh` confirms the server is healthy and `run/endpoint.env` is created.
 
 3. **Submit the Array**:
    Submit the job array:
@@ -47,7 +47,7 @@ Each job:
 #SBATCH --output=element_job_%A_%a.log
 
 # 1. Load the centralized LLM endpoint published by bin/start.sh
-ENDPOINT_FILE="$HOME/litellm/etc/endpoint.env"
+ENDPOINT_FILE="/home/wdconinc/git/slurm-litellm-vllm/run/endpoint.env"
 
 if [ ! -f "$ENDPOINT_FILE" ]; then
     echo "ERROR: Endpoint file $ENDPOINT_FILE not found."
