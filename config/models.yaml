@@ -1,3 +1,15 @@
+defaults:
+  vllm:
+    image: "docker://vllm/vllm-openai:v0.6.3.post1"
+    download_dir: "/project/6041615/models"
+    host: "127.0.0.1"
+    port: 8000
+    sing_bind: "/project/6041615"
+  litellm:
+    port: 4000
+  watchdog:
+    max_idle_mins: 15
+
 qwen:
   fullname: "Qwen/Qwen3-Coder-Next"
   slurm:
@@ -8,7 +20,6 @@ qwen:
     mem: "128G"
     time: "04:00:00"
   vllm:
-    image: "docker://vllm/vllm-openai:v0.6.3.post1"
     args:
       - "--enable-auto-tool-choice"
       - "--tool-call-parser qwen3_xml"
@@ -29,7 +40,6 @@ mistral:
     mem: "128G"
     time: "04:00:00"
   vllm:
-    image: "docker://vllm/vllm-openai:v0.6.3.post1"
     args:
       - "--limit-mm-per-prompt '{\"image\": 0}'"
       - "--quantization compressed-tensors"

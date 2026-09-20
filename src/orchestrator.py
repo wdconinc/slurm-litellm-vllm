@@ -39,23 +39,38 @@ def get_internal_ip():
     except Exception:
         return "127.0.0.1"
 
+def deep_merge(dict1, dict2):
+    for k, v in dict2.items():
+        if isinstance(v, dict) and k in dict1 and isinstance(dict1[k], dict):
+            deep_merge(dict1[k], v)
+        else:
+            dict1[k] = v
+    return dict1
+
 def get_model_config(model_key):
     config_path = os.path.join(os.path.dirname(__file__), "..", "config", "models.yaml")
     try:
         with open(config_path, "r") as f:
-            models = yaml.safe_load(f)
+            data = yaml.safe_load(f)
     except Exception as e:
         print(f"Error reading config/models.yaml: {e}")
         sys.exit(1)
         
-    if model_key in models and isinstance(models[model_key], str):
-        model_key = models[model_key]
+    if model_key in data and isinstance(data[model_key], str):
+        model_key = data[model_key]
         
-    if model_key not in models:
+    if model_key not in data:
         print(f"Unknown model key: {model_key}")
         sys.exit(1)
         
-    return models[model_key]
+    defaults = data.get("defaults", {})
+    model_config = data[model_key]
+    
+    import copy
+    config = copy.deepcopy(defaults)
+    deep_merge(config, model_config)
+    
+    return config
 
 def main():
     if len(sys.argv) < 2:
@@ -82,13 +97,17 @@ def main():
     gpus_per_node = int(os.getenv("SLURM_GPUS_PER_NODE", "2"))
     
     vllm_image = config.get("vllm", {}).get("image", "docker://vllm/vllm-openai:v0.6.3.post1")
-    sing_bind = ["--nv", "--bind", "/project/6041615"]
+    sing_bind_path = config.get("vllm", {}).get("sing_bind", "/project/6041615")
+    vllm_host = config.get("vllm", {}).get("host", "127.0.0.1")
+    vllm_port = str(config.get("vllm", {}).get("port", "8000"))
+    vllm_download_dir = config.get("vllm", {}).get("download_dir", "/project/6041615/models")
     
     if gpus_per_node == 0 or "cpu" in model_key:
         print("[Orchestrator] Running in CPU-only mode.")
-        sing_bind = ["--bind", "/project/6041615"]
+        sing_bind = ["--bind", sing_bind_path]
         tp_size = num_nodes
     else:
+        sing_bind = ["--nv", "--bind", sing_bind_path]
         tp_size = num_nodes * gpus_per_node
 
     import shlex
@@ -100,14 +119,14 @@ def main():
     # Ray Cluster Initialization
     if num_nodes > 1:
         print(f"[Orchestrator] Multi-node setup detected ({num_nodes} nodes). Configuring Ray...")
-        port = "6379"
-        ip_head = f"{internal_ip}:{port}"
+        ray_port = "6379"
+        ip_head = f"{internal_ip}:{ray_port}"
         os.environ["SINGULARITYENV_RAY_ADDRESS"] = ip_head
         
         cpus_per_task = os.getenv("SLURM_CPUS_PER_TASK", "64")
         
         # Head node
-        head_cmd = ["srun", "--nodes=1", "--ntasks=1", "-w", compute_node, "singularity", "exec", "--cleanenv"] + sing_bind + [vllm_image, "ray", "start", "--head", f"--node-ip-address={internal_ip}", f"--port={port}", f"--num-cpus={cpus_per_task}", "--block"]
+        head_cmd = ["srun", "--nodes=1", "--ntasks=1", "-w", compute_node, "singularity", "exec", "--cleanenv"] + sing_bind + [vllm_image, "ray", "start", "--head", f"--node-ip-address={internal_ip}", f"--port={ray_port}", f"--num-cpus={cpus_per_task}", "--block"]
         PROCESSES.append(subprocess.Popen(head_cmd))
         
         # Worker nodes
@@ -122,9 +141,9 @@ def main():
     print("[Orchestrator] Starting vLLM...")
     vllm_cmd = ["singularity", "exec", "--cleanenv"] + sing_bind + [
         vllm_image, "vllm", "serve", config["fullname"],
-        "--download-dir", "/project/6041615/models",
+        "--download-dir", vllm_download_dir,
         "--served-model-name", config["fullname"],
-        "--host", "127.0.0.1", "--port", "8000",
+        "--host", vllm_host, "--port", vllm_port,
         "--tensor-parallel-size", str(tp_size)
     ] + vllm_args
     
@@ -136,7 +155,7 @@ def main():
     healthy = False
     while vllm_proc.poll() is None:
         try:
-            r = requests.get("http://127.0.0.1:8000/health", timeout=2)
+            r = requests.get(f"http://{vllm_host}:{vllm_port}/health", timeout=2)
             if r.status_code == 200:
                 healthy = True
                 break
@@ -161,7 +180,7 @@ def main():
                 "model_name": "my-local-model",
                 "litellm_params": {
                     "model": f"openai/{config['fullname']}",
-                    "api_base": "http://127.0.0.1:8000/v1",
+                    "api_base": f"http://{vllm_host}:{vllm_port}/v1",
                     "api_key": "not-needed"
                 }
             }
@@ -186,23 +205,24 @@ def main():
         if os.path.exists(os.path.expanduser("~/litellm/bin/litellm")):
             litellm_cmd = os.path.expanduser("~/litellm/bin/litellm")
             
-    proxy_proc = subprocess.Popen([litellm_cmd, "--config", yaml_path, "--host", "0.0.0.0", "--port", "4000"])
+    litellm_port = str(config.get("litellm", {}).get("port", "4000"))
+    proxy_proc = subprocess.Popen([litellm_cmd, "--config", yaml_path, "--host", "0.0.0.0", "--port", litellm_port])
     PROCESSES.append(proxy_proc)
     
     # Publish endpoint
     with open(ENDPOINT_FILE, "w") as f:
-        f.write(f'export OPENAI_API_BASE="http://{internal_ip}:4000/v1"\n')
+        f.write(f'export OPENAI_API_BASE="http://{internal_ip}:{litellm_port}/v1"\n')
         f.write(f'export OPENAI_API_KEY="{master_key}"\n')
         f.write('export OPENAI_MODEL="my-local-model"\n')
     print(f"[Orchestrator] Endpoint published to {ENDPOINT_FILE}")
     
     # Idle Watchdog
-    max_idle_mins = 15
+    max_idle_mins = int(config.get("watchdog", {}).get("max_idle_mins", 15))
     idle_mins = 0
     while vllm_proc.poll() is None and proxy_proc.poll() is None:
         time.sleep(60)
         try:
-            r = requests.get("http://127.0.0.1:8000/metrics", timeout=5)
+            r = requests.get(f"http://{vllm_host}:{vllm_port}/metrics", timeout=5)
             metrics = r.text
             active_reqs = 0
             for line in metrics.splitlines():

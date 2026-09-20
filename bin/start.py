@@ -3,25 +3,40 @@ import sys
 import time
 import subprocess
 
+def deep_merge(dict1, dict2):
+    for k, v in dict2.items():
+        if isinstance(v, dict) and k in dict1 and isinstance(dict1[k], dict):
+            deep_merge(dict1[k], v)
+        else:
+            dict1[k] = v
+    return dict1
+
 def submit_job(model_key):
     import yaml
     
     config_path = os.path.join(os.path.dirname(__file__), "..", "config", "models.yaml")
     try:
         with open(config_path, "r") as f:
-            models = yaml.safe_load(f)
+            data = yaml.safe_load(f)
     except Exception as e:
         print(f"Error reading config/models.yaml: {e}")
         sys.exit(1)
         
-    if model_key in models and isinstance(models[model_key], str):
-        model_key = models[model_key] # resolve alias
+    if model_key in data and isinstance(data[model_key], str):
+        model_key = data[model_key] # resolve alias
         
-    if model_key not in models:
+    if model_key not in data:
         print(f"Unknown model key: {model_key}")
         sys.exit(1)
         
-    slurm_overrides = models[model_key].get("slurm", {})
+    defaults = data.get("defaults", {})
+    model_config = data[model_key]
+    
+    import copy
+    config = copy.deepcopy(defaults)
+    deep_merge(config, model_config)
+    
+    slurm_overrides = config.get("slurm", {})
     
     cmd = ["sbatch"]
     for key, val in slurm_overrides.items():
