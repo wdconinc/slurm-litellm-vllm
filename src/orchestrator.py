@@ -119,6 +119,12 @@ def main() -> None:
         "download_dir", "/project/6041615/models"
     )
 
+    singularity_cache = config.get("vllm", {}).get("singularity_cache")
+    if singularity_cache:
+        os.environ["SINGULARITY_CACHEDIR"] = singularity_cache
+        os.environ["APPTAINER_CACHEDIR"] = singularity_cache
+        os.makedirs(singularity_cache, exist_ok=True)
+
     if gpus_per_node == 0 or "cpu" in model_key:
         print("[Orchestrator] Running in CPU-only mode.")
         sing_bind = ["--bind", sing_bind_path]
