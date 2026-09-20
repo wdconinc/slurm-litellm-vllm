@@ -1,5 +1,3 @@
-# Pre-configured models with validated HPC and vLLM settings
-
 qwen:
   fullname: "Qwen/Qwen3-Coder-Next"
   slurm:
@@ -10,6 +8,7 @@ qwen:
     mem: "128G"
     time: "04:00:00"
   vllm:
+    image: "docker://vllm/vllm-openai:v0.6.3.post1"
     args:
       - "--enable-auto-tool-choice"
       - "--tool-call-parser qwen3_xml"
@@ -30,6 +29,7 @@ mistral:
     mem: "128G"
     time: "04:00:00"
   vllm:
+    image: "docker://vllm/vllm-openai:v0.6.3.post1"
     args:
       - "--limit-mm-per-prompt '{\"image\": 0}'"
       - "--quantization compressed-tensors"
@@ -49,6 +49,7 @@ smollm-cpu:
     mem: "16G"
     time: "01:00:00"
   vllm:
+    image: "docker://vllm/vllm-openai-cpu:latest-x86_64"
     args:
       - "--max-model-len 2048"
       - "--enforce-eager"

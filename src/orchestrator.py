@@ -81,12 +81,11 @@ def main():
     num_nodes = int(os.getenv("SLURM_JOB_NUM_NODES", "1"))
     gpus_per_node = int(os.getenv("SLURM_GPUS_PER_NODE", "2"))
     
-    vllm_image = "docker://vllm/vllm-openai:v0.6.3.post1"
+    vllm_image = config.get("vllm", {}).get("image", "docker://vllm/vllm-openai:v0.6.3.post1")
     sing_bind = ["--nv", "--bind", "/project/6041615"]
     
     if gpus_per_node == 0 or "cpu" in model_key:
         print("[Orchestrator] Running in CPU-only mode.")
-        vllm_image = "docker://vllm/vllm-openai-cpu:latest-x86_64"
         sing_bind = ["--bind", "/project/6041615"]
         tp_size = num_nodes
     else:

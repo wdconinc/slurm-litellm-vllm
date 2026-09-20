@@ -35,6 +35,7 @@ mistral:
     mem: "128G"
     time: "04:00:00"
   vllm:
+    image: "docker://vllm/vllm-openai:v0.6.3.post1"
     args:
       - "--quantization compressed-tensors"
       - "--max-model-len 32764"

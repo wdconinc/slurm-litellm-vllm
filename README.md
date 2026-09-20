@@ -120,6 +120,7 @@ llama3:
     mem: "64G"
     time: "02:00:00"
   vllm:
+    image: "docker://vllm/vllm-openai:v0.6.3.post1"
     args:
       - "--quantization fp8"
       - "--max-model-len 8192"
