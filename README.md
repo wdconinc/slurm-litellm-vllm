@@ -45,11 +45,22 @@ By default, the proxy runs on `127.0.0.1:4000` on the login node.
 
 ### 3. Connect via SSH Port Forwarding
 
-To access the LiteLLM proxy from your local machine, open an SSH tunnel to the login node forwarding port 4000:
+To reliably access the LiteLLM proxy from your local machine, it is recommended to configure your `~/.ssh/config` file. This handles the port forwarding automatically and ensures your connection stays alive:
+
+```ssh-config
+Host *.hpc.umanitoba.ca
+    IdentityFile ~/.ssh/id_rsa.grex.hpc.umanitoba.ca  # Update with your actual key path
+    LocalForward 4000 127.0.0.1:4000
+    ServerAliveInterval 60
+```
+
+With this configured, simply SSH into the login node:
 
 ```bash
-ssh -L 4000:127.0.0.1:4000 your_username@grex.umanitoba.ca
+ssh your_username@grex.hpc.umanitoba.ca
 ```
+
+*(Alternatively, for a one-off connection without editing your config, you can run: `ssh -L 4000:127.0.0.1:4000 your_username@grex.hpc.umanitoba.ca`)*
 
 You can now use your local `localhost:4000` as an OpenAI-compatible API base in your applications, scripts, or IDEs:
 
