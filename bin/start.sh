@@ -6,7 +6,13 @@ MODEL_KEY=${1:-mistral}
 echo "Submitting vLLM Slurm job for model: $MODEL_KEY..."
 
 # Submit the job
-OUTPUT=$(sbatch bin/vllm.sh "$MODEL_KEY" 2>&1)
+if [[ "$MODEL_KEY" == *"cpu"* ]]; then
+    echo "Detected CPU-only model. Overriding Slurm GPU allocation..."
+    OUTPUT=$(sbatch --gpus-per-node=0 bin/vllm.sh "$MODEL_KEY" 2>&1)
+else
+    OUTPUT=$(sbatch bin/vllm.sh "$MODEL_KEY" 2>&1)
+fi
+
 if [ $? -ne 0 ]; then
     echo "Error: Failed to submit Slurm job."
     echo "$OUTPUT"

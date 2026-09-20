@@ -62,9 +62,17 @@ case "$MODEL_KEY" in
             "--reasoning-parser" "mistral"
         )
         ;;
+    smollm-cpu)
+        MODEL_NAME="smollm-cpu"
+        MODEL_FULLNAME="HuggingFaceTB/SmolLM-135M-Instruct"
+        VLLM_ARGS=(
+            "--max-model-len" "2048"
+            "--enforce-eager"
+        )
+        ;;
     *)
         echo "Unknown model key: $MODEL_KEY"
-        echo "Available options: qwen, mistral"
+        echo "Available options: qwen, mistral, smollm-cpu"
         exit 1
         ;;
 esac
@@ -80,6 +88,7 @@ export SINGULARITYENV_VLLM_CACHE_ROOT="/project/6041615/vllm_cache"
 
 # Pin the vLLM Docker image version to ensure reproducible cluster runs
 VLLM_IMAGE="docker://vllm/vllm-openai:v0.4.2"
+SING_BIND="--nv --bind /project/6041615"
 
 # Ensure the endpoint file is safely cleaned up when this job exits or is killed
 ENDPOINT_FILE="$HOME/litellm/etc/endpoint.env"
@@ -95,7 +104,15 @@ echo "Compute Node Internal IP: $INTERNAL_IP"
 # Get number of nodes and GPUs
 NUM_NODES=${SLURM_JOB_NUM_NODES:-1}
 GPUS_PER_NODE=${SLURM_GPUS_PER_NODE:-2}
-TP_SIZE=$(( NUM_NODES * GPUS_PER_NODE ))
+
+if [ "$GPUS_PER_NODE" -eq 0 ] || [ "$MODEL_KEY" == "smollm-cpu" ]; then
+    echo "Running in CPU-only mode."
+    VLLM_IMAGE="docker://vllm/vllm-openai-cpu:latest-x86_64"
+    SING_BIND="--bind /project/6041615"
+    TP_SIZE=${NUM_NODES}  # Ray will handle 1 instance per node for CPU tensor parallelism
+else
+    TP_SIZE=$(( NUM_NODES * GPUS_PER_NODE ))
+fi
 
 # If multi-node, we need Ray
 if [ "$NUM_NODES" -gt 1 ]; then
@@ -111,16 +128,16 @@ if [ "$NUM_NODES" -gt 1 ]; then
     # Start Ray head on the primary compute node
     echo "Starting Ray head on $COMPUTE_NODE"
     srun --nodes=1 --ntasks=1 -w "$COMPUTE_NODE" \
-        singularity exec --cleanenv --nv --bind /project/6041615 "$VLLM_IMAGE" \
-        ray start --head --node-ip-address="$INTERNAL_IP" --port=$port --num-cpus="${SLURM_CPUS_PER_TASK:-64}" --num-gpus="${GPUS_PER_NODE}" --block &
+        singularity exec --cleanenv $SING_BIND "$VLLM_IMAGE" \
+        ray start --head --node-ip-address="$INTERNAL_IP" --port=$port --num-cpus="${SLURM_CPUS_PER_TASK:-64}" --block &
 
     # Start Ray workers on the other nodes
     worker_num=$(( NUM_NODES - 1 ))
     if [ "$worker_num" -gt 0 ]; then
         echo "Starting Ray workers on remaining $worker_num nodes"
         srun --nodes="$worker_num" --ntasks="$worker_num" --exclude="$COMPUTE_NODE" \
-            singularity exec --cleanenv --nv --bind /project/6041615 "$VLLM_IMAGE" \
-            ray start --address="$ip_head" --num-cpus="${SLURM_CPUS_PER_TASK:-64}" --num-gpus="${GPUS_PER_NODE}" --block &
+            singularity exec --cleanenv $SING_BIND "$VLLM_IMAGE" \
+            ray start --address="$ip_head" --num-cpus="${SLURM_CPUS_PER_TASK:-64}" --block &
     fi
     
     # Wait for ray to be ready
@@ -132,7 +149,7 @@ fi
 # Run vLLM using Singularity. We bind to 127.0.0.1 to force routing through LiteLLM.
 # By passing $MODEL_FULLNAME instead of a local path, vLLM automatically downloads it
 # (using the ultra-fast hf_transfer) into the shared --download-dir if it doesn't exist.
-singularity exec --cleanenv --nv --bind /project/6041615 "$VLLM_IMAGE" \
+singularity exec --cleanenv $SING_BIND "$VLLM_IMAGE" \
     vllm serve "$MODEL_FULLNAME" \
     --download-dir "/project/6041615/models" \
     --served-model-name "$MODEL_FULLNAME" \
