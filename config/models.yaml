@@ -4,19 +4,18 @@ qwen:
   fullname: "Qwen/Qwen3-Coder-Next"
   slurm:
     partition: "lgpu"
+    nodes: 1
     gpus_per_node: 2
     cpus_per_task: 64
+    mem: "128G"
+    time: "04:00:00"
   vllm:
     args:
       - "--enable-auto-tool-choice"
-      - "--tool-call-parser"
-      - "qwen3_xml"
-      - "--max-model-len"
-      - "131072"
-      - "--gpu-memory-utilization"
-      - "0.95"
-      - "--quantization"
-      - "fp8"
+      - "--tool-call-parser qwen3_xml"
+      - "--max-model-len 131072"
+      - "--gpu-memory-utilization 0.95"
+      - "--quantization fp8"
       - "--enable-prefix-caching"
       - "--enable-chunked-prefill"
       - "--trust-remote-code"
@@ -25,35 +24,33 @@ mistral:
   fullname: "sahilchachra/Leanstral-1.5-119B-A6B-NVFP4"
   slurm:
     partition: "lgpu"
+    nodes: 1
     gpus_per_node: 2
     cpus_per_task: 64
+    mem: "128G"
+    time: "04:00:00"
   vllm:
     args:
-      - "--limit-mm-per-prompt"
-      - '{"image": 0}'
-      - "--quantization"
-      - "compressed-tensors"
-      - "--max-model-len"
-      - "32764"
-      - "--gpu-memory-utilization"
-      - "0.90"
-      - "--tokenizer-mode"
-      - "mistral"
-      - "--tool-call-parser"
-      - "mistral"
-      - "--reasoning-parser"
-      - "mistral"
+      - "--limit-mm-per-prompt '{\"image\": 0}'"
+      - "--quantization compressed-tensors"
+      - "--max-model-len 32764"
+      - "--gpu-memory-utilization 0.90"
+      - "--tokenizer-mode mistral"
+      - "--tool-call-parser mistral"
+      - "--reasoning-parser mistral"
 
 smollm-cpu:
   fullname: "HuggingFaceTB/SmolLM-135M-Instruct"
   slurm:
     partition: "skylake"
+    nodes: 1
     gpus_per_node: 0
     cpus_per_task: 2
+    mem: "16G"
+    time: "01:00:00"
   vllm:
     args:
-      - "--max-model-len"
-      - "2048"
+      - "--max-model-len 2048"
       - "--enforce-eager"
 
 # Aliases

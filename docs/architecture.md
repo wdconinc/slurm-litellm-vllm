@@ -29,12 +29,13 @@ mistral:
   fullname: "sahilchachra/Leanstral-1.5-119B-A6B-NVFP4"
   slurm:
     partition: "lgpu"
+    nodes: 1
     gpus_per_node: 2
     cpus_per_task: 64
+    mem: "128G"
+    time: "04:00:00"
   vllm:
     args:
-      - "--quantization"
-      - "compressed-tensors"
-      - "--max-model-len"
-      - "32764"
+      - "--quantization compressed-tensors"
+      - "--max-model-len 32764"
 ```

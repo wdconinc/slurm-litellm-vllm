@@ -114,14 +114,15 @@ llama3:
   fullname: "meta-llama/Meta-Llama-3-8B-Instruct"
   slurm:
     partition: "lgpu"
+    nodes: 1
     gpus_per_node: 1
     cpus_per_task: 32
+    mem: "64G"
+    time: "02:00:00"
   vllm:
     args:
-      - "--quantization"
-      - "fp8"
-      - "--max-model-len"
-      - "8192"
+      - "--quantization fp8"
+      - "--max-model-len 8192"
 ```
 
 Once saved, simply run `./bin/start.sh llama3` or deploy it programmatically via Python.

@@ -92,7 +92,11 @@ def main():
     else:
         tp_size = num_nodes * gpus_per_node
 
-    vllm_args = config.get("vllm", {}).get("args", [])[:]
+    import shlex
+    raw_vllm_args = config.get("vllm", {}).get("args", [])
+    vllm_args = []
+    for arg in raw_vllm_args:
+        vllm_args.extend(shlex.split(arg))
     
     # Ray Cluster Initialization
     if num_nodes > 1:
