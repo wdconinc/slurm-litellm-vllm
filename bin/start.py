@@ -4,7 +4,7 @@ import time
 import subprocess
 
 
-from typing import Optional
+from typing import Optional, Any
 
 
 def deep_merge(dict1: dict, dict2: dict) -> dict:
@@ -163,6 +163,25 @@ def print_success(endpoint_file: str) -> str:
 def watch_status(job_id: Optional[str], compute_ip: str) -> None:
     import urllib.request
     import yaml
+    import signal
+
+    def handle_sigtstp(signum: int, frame: Any) -> None:
+        print(
+            "\n\n[Monitor] Monitor paused. The vLLM server and watchdog continue to run independently on the cluster!"
+        )
+        print(
+            "          Type 'fg' to resume monitoring, or 'bg' to monitor silently in the background."
+        )
+        sys.stdout.flush()
+        signal.signal(signal.SIGTSTP, signal.SIG_DFL)
+        os.kill(os.getpid(), signal.SIGTSTP)
+
+    def handle_sigcont(signum: int, frame: Any) -> None:
+        signal.signal(signal.SIGTSTP, handle_sigtstp)
+        time.sleep(0.1)
+
+    signal.signal(signal.SIGTSTP, handle_sigtstp)
+    signal.signal(signal.SIGCONT, handle_sigcont)
 
     config_path = os.path.join(os.path.dirname(__file__), "..", "config", "models.yaml")
     try:
@@ -212,17 +231,25 @@ def watch_status(job_id: Optional[str], compute_ip: str) -> None:
             except Exception:
                 idle_mins = 0
 
-            if metrics_available:
-                mins_to_watchdog = max_idle_mins - idle_mins
-                sys.stdout.write(
-                    f"\r⏱️  Job Time Left: {time_left} | 🐕 Watchdog kills in: {mins_to_watchdog} mins (Active Reqs: {int(active_reqs)})   "
-                )
-            else:
-                sys.stdout.write(
-                    f"\r⏱️  Job Time Left: {time_left} | 🐕 Watchdog: {max_idle_mins} mins (Metrics unreachable)   "
-                )
+            mins_to_watchdog = max_idle_mins - idle_mins
+            is_fg = True
+            try:
+                if sys.stdout.isatty():
+                    is_fg = os.getpgrp() == os.tcgetpgrp(sys.stdout.fileno())
+            except Exception:
+                pass
 
-            sys.stdout.flush()
+            if is_fg:
+                if metrics_available:
+                    sys.stdout.write(
+                        f"\r⏱️  Job Time Left: {time_left} | 🐕 Watchdog kills in: {mins_to_watchdog} mins (Active Reqs: {int(active_reqs)})   "
+                    )
+                else:
+                    sys.stdout.write(
+                        f"\r⏱️  Job Time Left: {time_left} | 🐕 Watchdog: {max_idle_mins} mins (Metrics unreachable)   "
+                    )
+
+                sys.stdout.flush()
 
             if metrics_available and mins_to_watchdog <= 0:
                 print("\n[Monitor] Watchdog limit reached on compute node. Exiting.")
