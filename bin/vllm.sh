@@ -34,4 +34,4 @@ fi
 MODEL_KEY=${1:-mistral}
 
 # Execute the Python Orchestrator
-python "${SLURM_SUBMIT_DIR}/src/orchestrator.py" "$MODEL_KEY"
+python -u "${SLURM_SUBMIT_DIR}/src/orchestrator.py" "$MODEL_KEY"

@@ -118,7 +118,8 @@ def main():
     # Start vLLM
     print("[Orchestrator] Starting vLLM...")
     vllm_cmd = ["singularity", "exec", "--cleanenv"] + sing_bind + [
-        vllm_image, "vllm", "serve", config["fullname"],
+        vllm_image, "python3", "-m", "vllm.entrypoints.openai.api_server",
+        "--model", config["fullname"],
         "--download-dir", "/project/6041615/models",
         "--served-model-name", config["fullname"],
         "--host", "127.0.0.1", "--port", "8000",
