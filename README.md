@@ -70,6 +70,20 @@ response = client.chat.completions.create(
 print(response.choices[0].message.content)
 ```
 
+## Configuration and Secrets
+
+To manage sensitive keys (like Hugging Face access tokens for gated models) and override default settings, you can create a `.env` file in the root of the repository:
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and configure your settings:
+- `LITELLM_MASTER_KEY`: Protects your endpoint. Changing this replaces the default `sk-hpc-secret-key`.
+- `HF_TOKEN`: Required if you are downloading gated Hugging Face models (like Llama-3).
+
+The `bin/vllm.sh` script automatically reads this `.env` file on startup and passes the necessary credentials securely into the Singularity container.
+
 ## Adding New Models
 
 The application natively supports multiple models via a `case` statement in `bin/vllm.sh`. The default supported models are `mistral` and `qwen`.

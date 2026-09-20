@@ -17,6 +17,20 @@ echo "vLLM is running on: $COMPUTE_NODE"
 # Load Singularity
 module load singularity
 
+# Load environment variables from .env if present
+if [ -f "${SLURM_SUBMIT_DIR}/.env" ]; then
+    echo "Loading environment variables from ${SLURM_SUBMIT_DIR}/.env"
+    export $(grep -v '^#' "${SLURM_SUBMIT_DIR}/.env" | xargs)
+elif [ -f "$HOME/litellm/etc/.env" ]; then
+    echo "Loading environment variables from $HOME/litellm/etc/.env"
+    export $(grep -v '^#' "$HOME/litellm/etc/.env" | xargs)
+fi
+
+# Pass Hugging Face Token to Singularity if defined
+if [ -n "$HF_TOKEN" ]; then
+    export SINGULARITYENV_HF_TOKEN="$HF_TOKEN"
+fi
+
 # Get the requested model from the first argument (default to mistral)
 MODEL_KEY=${1:-mistral}
 
@@ -110,7 +124,8 @@ model_list:
 EOF
 
 # Start LiteLLM proxy directly on this compute node
-export LITELLM_MASTER_KEY="sk-hpc-secret-key"
+# Use the key from .env, or fallback to the default secret
+export LITELLM_MASTER_KEY="${LITELLM_MASTER_KEY:-sk-hpc-secret-key}"
 export OPENAI_API_KEY="not-needed"
 
 ~/litellm/bin/litellm --config ~/litellm/etc/dynamic_litellm_config_${SLURM_JOB_ID}.yaml --host 0.0.0.0 --port 4000 &
