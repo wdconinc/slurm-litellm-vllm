@@ -26,7 +26,16 @@ if ! python -c "import pytest" &> /dev/null; then
 fi
 
 echo "Running full feature verification against $OPENAI_API_BASE..."
-echo "Model: $OPENAI_MODEL"
+# Check for integration flag
+if [ "$1" == "--run-integration" ]; then
+    export RUN_RAY_INTEGRATION_TEST=1
+    echo "⚠️  Integration testing ENABLED."
+    echo "This will actively submit a 2-node Slurm job, which may take 10+ minutes to run."
+else
+    echo "ℹ️  Skipping slow Ray multi-node integration test."
+    echo "Run with './bin/run_tests.sh --run-integration' to include it."
+fi
+
 echo "------------------------------------------------------"
 
 # Run the pytest suite
