@@ -30,21 +30,30 @@ This repository contains scripts to start an automatically expiring vLLM instanc
 ## Usage
 
 ### 1. Start the vLLM Server and Proxy
-
+**Via Terminal:**
 From the login node, simply run the unified startup script. You can optionally pass the model key as an argument (defaults to `mistral`):
 
 ```bash
-./bin/start.sh mistral   # or 'qwen'
+./bin/start.sh mistral   # or 'smollm-cpu'
 ```
 
-This script will automatically:
-1. Submit the Slurm job (`vllm.sh`) to request a GPU node and start the vLLM container.
+**Via Python API (Jupyter Notebooks):**
+```python
+from src.api import SlurmLLMFleet
+
+fleet = SlurmLLMFleet(model="smollm-cpu")
+fleet.start(wait=True)
+client = fleet.get_openai_client()
+```
+
+The system will automatically:
+1. Parse `config/models.yaml` to request the correct Slurm resources (CPU/GPU nodes).
 2. Wait for the job to initialize and generate the required proxy configuration.
 3. Automatically launch the LiteLLM proxy on the login node (`127.0.0.1:4000`) as soon as the configuration is ready.
 
 By default, the proxy runs on `127.0.0.1:4000` on the login node.
 
-*(Optional: You can change the `LITELLM_MASTER_KEY` directly inside `bin/start.sh` to secure your proxy endpoint).*
+*(Optional: You can change the `LITELLM_MASTER_KEY` directly inside `.env` to secure your proxy endpoint).*
 
 ### 2. Connect via SSH Port Forwarding
 
@@ -90,14 +99,31 @@ The `bin/vllm.sh` script automatically reads this `.env` file on startup and pas
 
 ## Adding New Models
 
-The application natively supports multiple models via a `case` statement in `bin/vllm.sh`. The default supported models are `mistral` and `qwen`.
+Model definitions and their specific HPC hardware requirements are centrally configured in a declarative YAML file located at **`config/models.yaml`**. 
 
 To add a new model:
-1. Open `bin/vllm.sh`.
-2. Locate the `case "$MODEL_KEY" in` section.
-3. Add a new switch case for your model (e.g., `llama3)`).
-4. Define `MODEL_NAME` (internal identifier) and `MODEL_FULLNAME` (the exact Hugging Face repository ID, e.g., `meta-llama/Meta-Llama-3-8B-Instruct`).
-5. Specify any custom arguments required for your model as an array in `VLLM_ARGS`.
-6. Submit your job with `sbatch bin/vllm.sh llama3`.
+1. Open `config/models.yaml`.
+2. Add a new YAML block for your model.
+3. Define the `fullname` (the exact Hugging Face repository ID).
+4. Define the `slurm` requirements (`partition`, `gpus_per_node`, `cpus_per_task`).
+5. Specify any custom optimization arguments required for your model in the `vllm: args` list.
 
-*Note: You no longer need to download models manually. The infrastructure will automatically download missing models into `/project/6041615/models` using ultra-fast rust-based `hf_transfer`, and cache all compiled PyTorch graphs and Hugging Face assets directly on the parallel filesystem for incredibly fast subsequent startups.*
+Example:
+```yaml
+llama3:
+  fullname: "meta-llama/Meta-Llama-3-8B-Instruct"
+  slurm:
+    partition: "lgpu"
+    gpus_per_node: 1
+    cpus_per_task: 32
+  vllm:
+    args:
+      - "--quantization"
+      - "fp8"
+      - "--max-model-len"
+      - "8192"
+```
+
+Once saved, simply run `./bin/start.sh llama3` or deploy it programmatically via Python.
+
+*Note: You no longer need to download models manually. The infrastructure will automatically download missing models into `/project/6041615/models` using ultra-fast rust-based `hf_transfer`.*
