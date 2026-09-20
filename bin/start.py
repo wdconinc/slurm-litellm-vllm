@@ -173,6 +173,17 @@ def watch_status(job_id: Optional[str], compute_ip: str) -> None:
     import yaml
     import signal
 
+    config_path = os.path.join(os.path.dirname(__file__), "..", "config", "models.yaml")
+    try:
+        with open(config_path, "r") as f:
+            data = yaml.safe_load(f)
+            defaults = data.get("defaults", {})
+            max_idle_mins = int(defaults.get("watchdog", {}).get("max_idle_mins", 15))
+    except Exception:
+        max_idle_mins = 15
+
+    idle_mins = 0
+
     def handle_sigtstp(signum: int, frame: Any) -> None:
         print(
             "\n\n[Monitor] Monitor paused. The vLLM server and watchdog continue to run independently on the cluster!"
@@ -198,22 +209,16 @@ def watch_status(job_id: Optional[str], compute_ip: str) -> None:
                     time_left = squeue_res.stdout.strip()
             except Exception:
                 pass
-        print(f"\n[Monitor] Resumed. Job Time Left: {time_left}")
+
+        mins_to_watchdog = max_idle_mins - idle_mins
+        print(
+            f"\n[Monitor] Resumed. Job Time Left: {time_left} | Watchdog kills in: {mins_to_watchdog} mins"
+        )
         sys.stdout.flush()
 
     signal.signal(signal.SIGTSTP, handle_sigtstp)
     signal.signal(signal.SIGCONT, handle_sigcont)
 
-    config_path = os.path.join(os.path.dirname(__file__), "..", "config", "models.yaml")
-    try:
-        with open(config_path, "r") as f:
-            data = yaml.safe_load(f)
-            defaults = data.get("defaults", {})
-            max_idle_mins = int(defaults.get("watchdog", {}).get("max_idle_mins", 15))
-    except Exception:
-        max_idle_mins = 15
-
-    idle_mins = 0
     print(
         "\n[Monitor] Watching active session (Ctrl+C to stop monitor without killing job)..."
     )
