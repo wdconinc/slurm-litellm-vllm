@@ -1,11 +1,11 @@
 # Slurm LiteLLM vLLM
 
-This repository contains scripts to start an automatically expiring vLLM instance on a Slurm HPC cluster (specifically configured for the Grex cluster at UManitoba) and proxy the local LLM on the login node using LiteLLM. This setup allows you to efficiently use GPU resources on compute nodes while providing a standard OpenAI-compatible API endpoint that you can access over an SSH port-forwarded connection.
+This repository contains scripts to start an automatically expiring vLLM instance on a Slurm HPC cluster (specifically configured for the Grex cluster at UManitoba) and proxy the local LLM on the compute node using LiteLLM. This setup allows you to efficiently use GPU resources on compute nodes while providing a standard OpenAI-compatible API endpoint that you can access over an SSH port-forwarded connection.
 
 ## Features
 
 - **Automated Resource Management**: Includes a 15-minute idle timeout watchdog that monitors active requests. If the vLLM server is idle for 15 minutes, the Slurm job automatically terminates to release the allocated GPUs.
-- **Dynamic Networking**: Automatically determines the internal IP address of the compute node running vLLM and generates a configuration file (`dynamic_litellm_config.yaml`) for the LiteLLM proxy on the login node.
+- **Dynamic Networking**: Automatically determines the internal IP address of the compute node running vLLM and generates a configuration file (`dynamic_litellm_config.yaml`) for the LiteLLM proxy on the compute node.
 - **Singularity Integration**: Runs the vLLM server inside a Singularity container directly from the `vllm-openai` docker image.
 
 ## Prerequisites
@@ -49,9 +49,9 @@ client = fleet.get_openai_client()
 The system will automatically:
 1. Parse `config/models.yaml` to request the correct Slurm resources (CPU/GPU nodes).
 2. Wait for the job to initialize and generate the required proxy configuration.
-3. Automatically launch the LiteLLM proxy on the login node (`127.0.0.1:4000`) as soon as the configuration is ready.
+3. Automatically launch the LiteLLM proxy on the compute node (`127.0.0.1:4000`) as soon as the configuration is ready.
 
-By default, the proxy runs on `127.0.0.1:4000` on the login node.
+By default, the proxy runs on `0.0.0.0:4000` on the compute node.
 
 *(Optional: You can change the `LITELLM_MASTER_KEY` directly inside `.env` to secure your proxy endpoint).*
 
