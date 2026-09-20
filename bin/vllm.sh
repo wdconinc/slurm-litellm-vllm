@@ -57,11 +57,11 @@ esac
 
 MODEL_PATH="/project/6041615/models/${MODEL_NAME}"
 
-# Run vLLM using Singularity. We bind to 0.0.0.0 so the login node can reach it.
+# Run vLLM using Singularity. We bind to 127.0.0.1 to force routing through LiteLLM.
 singularity exec --cleanenv --nv --bind /project/6041615 docker://vllm/vllm-openai:latest \
     vllm serve "$MODEL_PATH" \
     --served-model-name "$MODEL_FULLNAME" \
-    --host 0.0.0.0 \
+    --host 127.0.0.1 \
     --port 8000 \
     --tensor-parallel-size 2 \
     "${VLLM_ARGS[@]}" &
@@ -69,10 +69,9 @@ singularity exec --cleanenv --nv --bind /project/6041615 docker://vllm/vllm-open
 # Capture the Process ID of vLLM
 VLLM_PID=$!
 
-# Wait for the API to boot up, but exit if the process dies
+# Wait for the API to boot up
 echo "Waiting for vLLM to initialize..."
-while ! curl -s http://localhost:8000/health > /dev/null; do
-    # CRITICAL: Check if vLLM crashed while starting up
+while ! curl -s http://127.0.0.1:8000/health > /dev/null; do
     if ! kill -0 $VLLM_PID 2>/dev/null; then
         echo "ERROR: vLLM process died during initialization. Exiting job."
         exit 1
@@ -84,18 +83,35 @@ echo "vLLM is up and running!"
 
 # Grab the internal 10.x.x.x IP address of the compute node
 INTERNAL_IP=$(hostname -I | awk '{for(i=1;i<=NF;i++) if($i ~ /^10\./) print $i}')
-echo "Directing LiteLLM to internal compute IP: $INTERNAL_IP"
+if [ -z "$INTERNAL_IP" ]; then
+    INTERNAL_IP=$(hostname -I | awk '{print $1}') # Fallback
+fi
+echo "Compute Node Internal IP: $INTERNAL_IP"
 
+# Configure LiteLLM to point to local vLLM
 mkdir -p ~/litellm/etc
-cat <<EOF > ~/litellm/etc/dynamic_litellm_config.yaml
+cat <<EOF > ~/litellm/etc/dynamic_litellm_config_${SLURM_JOB_ID}.yaml
 model_list:
   - model_name: my-local-model
     litellm_params:
       model: openai/${MODEL_FULLNAME}
-      api_base: http://${INTERNAL_IP}:8000/v1
+      api_base: http://127.0.0.1:8000/v1
       api_key: "not-needed"
 EOF
-echo "LiteLLM config successfully generated at ~/litellm/etc/dynamic_litellm_config.yaml"
+
+# Start LiteLLM proxy directly on this compute node
+export LITELLM_MASTER_KEY="sk-hpc-secret-key"
+export OPENAI_API_KEY="not-needed"
+
+~/litellm/bin/litellm --config ~/litellm/etc/dynamic_litellm_config_${SLURM_JOB_ID}.yaml --host 0.0.0.0 --port 4000 &
+LITELLM_PID=$!
+
+# Publish the endpoint for workers
+ENDPOINT_FILE="$HOME/litellm/etc/endpoint.env"
+echo "export OPENAI_API_BASE=\"http://${INTERNAL_IP}:4000/v1\"" > "$ENDPOINT_FILE"
+echo "export OPENAI_API_KEY=\"${LITELLM_MASTER_KEY}\"" >> "$ENDPOINT_FILE"
+echo "export OPENAI_MODEL=\"my-local-model\"" >> "$ENDPOINT_FILE"
+echo "LiteLLM endpoint published to $ENDPOINT_FILE"
 
 # The Idle Timeout Watchdog
 MAX_IDLE_MINUTES=15
@@ -104,14 +120,20 @@ IDLE_COUNTER=0
 while true; do
     sleep 60 # Check every 60 seconds
     
-    # Break if vLLM crashed or was killed externally
-    if ! kill -0 $VLLM_PID 2>/dev/null; then
-        echo "vLLM process stopped unexpectedly."
+    # Break if vLLM or LiteLLM crashed
+    if ! kill -0 $VLLM_PID 2>/dev/null || ! kill -0 $LITELLM_PID 2>/dev/null; then
+        echo "Critical server process stopped unexpectedly."
         break
     fi
 
-    # Fetch metrics and sum up running, waiting, and swapped requests
-    METRICS=$(curl -s http://localhost:8000/metrics)
+    # Fetch metrics and calculate active requests robustly
+    METRICS=$(curl -s http://127.0.0.1:8000/metrics || echo "CURL_FAILED")
+    
+    if [ "$METRICS" == "CURL_FAILED" ]; then
+        echo "Warning: Metrics curl timed out. Assuming server is busy under load."
+        IDLE_COUNTER=0
+        continue
+    fi
     ACTIVE_REQS=$(echo "$METRICS" | grep -E 'vllm:num_requests_(running|waiting|swapped)' | grep -v '#' | awk '{sum+=$2} END {print sum}')
     
     # Check if ACTIVE_REQS is exactly 0 (or empty, just in case)

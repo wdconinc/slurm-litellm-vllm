@@ -16,11 +16,8 @@ flowchart TD
         W3[Lean4 Worker N]
     end
 
-    subgraph "Login Node"
-        Proxy[LiteLLM Proxy\n(Central Queue / Router)]
-    end
-
     subgraph "GPU Compute Node"
+        Proxy[LiteLLM Proxy\n(Central Queue / Router)]
         vLLM[vLLM Server\n(High Throughput Inference)]
     end
 
@@ -35,7 +32,7 @@ flowchart TD
 
 While workers *could* technically connect directly to the vLLM IP, using the LiteLLM proxy on the login node provides critical benefits for a massive fleet of workers:
 1. **Connection Pooling & Queuing**: If 1,000 workers query the LLM at the exact same millisecond, the proxy queues and manages the HTTP connections gracefully without overwhelming the vLLM server.
-2. **Stable Endpoint**: The vLLM job might restart or move to a different compute node (changing its internal IP). The LiteLLM proxy remains stable on the login node; it dynamically reloads its configuration when the new vLLM job starts. The workers never need to know the GPU node's IP.
+2. **Service Discovery**: The vLLM job grabs a dynamic internal IP on the cluster. By bundling the proxy on the same compute node and publishing an `endpoint.env` file, workers simply `source` the file and instantly know where to route traffic.
 3. **Standardization**: It enforces the OpenAI API specification perfectly.
 
 ### Workflow Sequence
@@ -45,7 +42,7 @@ The following sequence diagram illustrates the lifecycle of one of these workers
 ```mermaid
 sequenceDiagram
     participant Worker as CPU Node<br/>(Lean4 Worker)
-    participant Proxy as Login Node<br/>(LiteLLM Proxy)
+    participant Proxy as GPU Node<br/>(LiteLLM Proxy)
     participant GPU as GPU Node<br/>(vLLM Server)
 
     Note over Worker: Worker starts CPU-intensive<br/>compilation / proof evaluation
@@ -93,10 +90,8 @@ Point the workers to the login node where the LiteLLM proxy is running. Assuming
 #SBATCH --mem=8G             # Memory for Lean4
 #SBATCH --time=02:00:00      # Job duration
 
-# Point the worker to the centralized LiteLLM proxy on the login node
-export OPENAI_API_BASE="http://login1:4000/v1"
-export OPENAI_API_KEY="sk-hpc-secret-key"
-export OPENAI_MODEL="mistralai-leanstral"
+# Source the dynamic endpoint published by the decentralized proxy
+source ~/litellm/etc/endpoint.env
 
 echo "Worker ${SLURM_ARRAY_TASK_ID} starting Lean4 compilation..."
 
