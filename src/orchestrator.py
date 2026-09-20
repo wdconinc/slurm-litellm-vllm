@@ -280,11 +280,20 @@ def main() -> None:
     litellm_cmd = shutil.which("litellm")
     if not litellm_cmd:
         venv_bin = os.path.dirname(sys.executable)
-        fallback = os.path.join(venv_bin, "litellm")
-        if os.path.exists(fallback):
-            litellm_cmd = fallback
-        else:
-            print("[Orchestrator] ERROR: Could not find 'litellm' executable.")
+        fallbacks = [
+            os.path.join(venv_bin, "litellm"),
+            os.path.join(REPO_ROOT, ".venv", "bin", "litellm"),
+            os.path.expanduser("~/.local/bin/litellm"),
+        ]
+        for f in fallbacks:
+            if os.path.exists(f):
+                litellm_cmd = f
+                break
+
+        if not litellm_cmd:
+            print(
+                f"[Orchestrator] ERROR: Could not find 'litellm' executable. Checked PATH and {fallbacks}"
+            )
             sys.exit(1)
 
     litellm_port = str(config.get("litellm", {}).get("port", "4000"))
