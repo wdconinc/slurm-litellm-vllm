@@ -41,7 +41,7 @@ mistral:
     time: "04:00:00"
   vllm:
     args:
-      - "--limit-mm-per-prompt '{\"image\": 0}'"
+      - "--limit-mm-per-prompt image=0"
       - "--quantization compressed-tensors"
       - "--max-model-len 32764"
       - "--gpu-memory-utilization 0.90"
