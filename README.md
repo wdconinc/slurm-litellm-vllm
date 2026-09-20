@@ -48,22 +48,13 @@ By default, the proxy runs on `127.0.0.1:4000` on the login node.
 
 ### 2. Connect via SSH Port Forwarding
 
-To reliably access the LiteLLM proxy from your local machine, it is recommended to configure your `~/.ssh/config` file. This handles the port forwarding automatically and ensures your connection stays alive:
-
-```ssh-config
-Host *.hpc.umanitoba.ca
-    IdentityFile ~/.ssh/id_rsa.grex.hpc.umanitoba.ca  # Update with your actual key path
-    LocalForward 4000 127.0.0.1:4000
-    ServerAliveInterval 60
-```
-
-With this configured, simply SSH into the login node:
+To reliably access the endpoint from your local machine, use the provided local helper script. This script automatically reads the active configuration on the cluster and sets up the correct port forwarding directly to the active compute node:
 
 ```bash
-ssh your_username@grex.hpc.umanitoba.ca
+./bin/connect.sh your_username@grex.hpc.umanitoba.ca
 ```
 
-*(Alternatively, for a one-off connection without editing your config, you can run: `ssh -L 4000:127.0.0.1:4000 your_username@grex.hpc.umanitoba.ca`)*
+*(Alternatively, for a manual setup, you can check `~/litellm/etc/endpoint.env` on the login node and manually run: `ssh -L 4000:<INTERNAL_IP>:4000 your_username@grex.hpc.umanitoba.ca`)*
 
 You can now use your local `localhost:4000` as an OpenAI-compatible API base in your applications, scripts, or IDEs:
 
@@ -93,6 +84,7 @@ cp .env.example .env
 Open `.env` and configure your settings:
 - `LITELLM_MASTER_KEY`: Protects your endpoint. Changing this replaces the default `sk-hpc-secret-key`.
 - `HF_TOKEN`: Required if you are downloading gated Hugging Face models (like Llama-3).
+- `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`: (Optional) Setting these enables Langfuse observability and telemetry in LiteLLM.
 
 The `bin/vllm.sh` script automatically reads this `.env` file on startup and passes the necessary credentials securely into the Singularity container.
 
