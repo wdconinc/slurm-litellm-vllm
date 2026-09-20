@@ -186,7 +186,20 @@ def watch_status(job_id: Optional[str], compute_ip: str) -> None:
 
     def handle_sigcont(signum: int, frame: Any) -> None:
         signal.signal(signal.SIGTSTP, handle_sigtstp)
-        time.sleep(0.1)
+        time_left = "Unknown"
+        if job_id:
+            try:
+                squeue_res = subprocess.run(
+                    ["squeue", "-h", "-j", job_id, "-o", "%L"],
+                    capture_output=True,
+                    text=True,
+                )
+                if squeue_res.stdout.strip():
+                    time_left = squeue_res.stdout.strip()
+            except Exception:
+                pass
+        print(f"\n[Monitor] Resumed. Job Time Left: {time_left}")
+        sys.stdout.flush()
 
     signal.signal(signal.SIGTSTP, handle_sigtstp)
     signal.signal(signal.SIGCONT, handle_sigcont)
