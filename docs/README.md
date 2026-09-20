@@ -46,6 +46,40 @@ flowchart LR
     Watchdog -- "Kill on Idle" --> vLLM
 ```
 
+### Startup Sequence
+
+The diagram below illustrates the exact chronological sequence of events when a user starts the system:
+
+```mermaid
+sequenceDiagram
+    participant User as User / App
+    participant Login as Login Node
+    participant Slurm as Slurm Scheduler
+    participant GPU as GPU Compute Node
+    
+    User->>Login: Run ./bin/start.sh
+    Login->>Slurm: sbatch bin/vllm.sh
+    Slurm-->>Login: Return Job ID
+    
+    Note over Login: Polls endpoint.env<br/>waiting for creation
+    
+    Slurm->>GPU: Allocate node & execute vllm.sh
+    GPU->>GPU: Download/Cache Model (hf_transfer)
+    GPU->>GPU: Start vLLM Server (Singularity)
+    
+    Note over GPU: Wait for http://127.0.0.1:8000/health
+    
+    GPU->>GPU: Start LiteLLM Proxy (0.0.0.0:4000)
+    GPU->>Login: Write IP & Keys to endpoint.env
+    
+    Login-->>User: Print connection instructions & exit
+    
+    Note over User,GPU: Runtime Execution
+    User->>GPU: POST /v1/chat/completions<br/>(Routed via SSH Tunnel / Network)
+    GPU->>GPU: LiteLLM processes & forwards to vLLM
+    GPU-->>User: JSON Response
+```
+
 ### Components
 
 1. **Start Script (`bin/start.sh`)**: The main entry point on the login node. It submits the slurm job and waits for the `endpoint.env` file to be populated by the compute node, ensuring you know exactly where to tunnel.
