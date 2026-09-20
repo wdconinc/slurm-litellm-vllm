@@ -61,6 +61,7 @@ smollm-cpu:
   vllm:
     image: "docker://vllm/vllm-openai-cpu:latest-x86_64"
     args:
+      - "--gpu-memory-utilization 0.1"
       - "--max-model-len 2048"
       - "--enforce-eager"
 
