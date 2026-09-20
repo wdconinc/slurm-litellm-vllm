@@ -130,6 +130,16 @@ model_list:
       api_key: "not-needed"
 EOF
 
+# Dynamically inject Langfuse if credentials are provided
+if [ -n "$LANGFUSE_PUBLIC_KEY" ] && [ -n "$LANGFUSE_SECRET_KEY" ]; then
+    cat <<EOF >> ~/litellm/etc/dynamic_litellm_config_${SLURM_JOB_ID}.yaml
+
+litellm_settings:
+  success_callbacks: ["langfuse"]
+EOF
+    echo "Langfuse observability enabled in LiteLLM config."
+fi
+
 # Start LiteLLM proxy directly on this compute node
 # Use the key from .env, or fallback to the default secret
 export LITELLM_MASTER_KEY="${LITELLM_MASTER_KEY:-sk-hpc-secret-key}"
