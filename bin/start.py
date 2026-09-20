@@ -123,7 +123,7 @@ def monitor_job(job_id: Optional[str]) -> str:
     return endpoint_file
 
 
-def print_success(endpoint_file: str) -> None:
+def print_success(endpoint_file: str) -> str:
     with open(endpoint_file, "r") as f:
         content = f.read()
 
@@ -139,16 +139,98 @@ def print_success(endpoint_file: str) -> None:
     else:
         compute_ip = "<COMPUTE_NODE_IP>"
 
+    abs_endpoint = os.path.abspath(endpoint_file)
+    user = os.getenv("USER", "$USER")
+
     print("==========================================================")
     print("✅ Success! Decentralized LLM Proxy is running.")
     print("==========================================================")
-    print("For Cluster Workers (e.g., Lean4 Fleet):")
+    print("For Cluster Workers / Background Jobs:")
     print("  Before running your worker scripts, load the endpoint:")
-    print(f"  source {endpoint_file}")
+    print(f"  source {abs_endpoint}")
     print("\nFor Local Laptop Access (SSH Port Forwarding):")
     print("  Run this command on your laptop to tunnel to the compute node:")
-    print(f"  ssh -L 4000:{compute_ip}:4000 your_username@grex.hpc.umanitoba.ca")
+    print(f"  ssh -L 4000:{compute_ip}:4000 {user}@grex.hpc.umanitoba.ca")
+    print("\n  Or add this snippet to your ~/.ssh/config:")
+    print("  Host proxy")
+    print("      HostName grex.hpc.umanitoba.ca")
+    print(f"      User {user}")
+    print(f"      LocalForward 4000 {compute_ip}:4000")
     print("==========================================================")
+    return compute_ip
+
+
+def watch_status(job_id: Optional[str], compute_ip: str) -> None:
+    import urllib.request
+    import yaml
+
+    config_path = os.path.join(os.path.dirname(__file__), "..", "config", "models.yaml")
+    try:
+        with open(config_path, "r") as f:
+            data = yaml.safe_load(f)
+            defaults = data.get("defaults", {})
+            max_idle_mins = int(defaults.get("watchdog", {}).get("max_idle_mins", 15))
+    except Exception:
+        max_idle_mins = 15
+
+    idle_mins = 0
+    print(
+        "\n[Monitor] Watching active session (Ctrl+C to stop monitor without killing job)..."
+    )
+
+    try:
+        while True:
+            time_left = "Unknown"
+            if job_id:
+                squeue_res = subprocess.run(
+                    ["squeue", "-h", "-j", job_id, "-o", "%L"],
+                    capture_output=True,
+                    text=True,
+                )
+                time_left = squeue_res.stdout.strip()
+                if not time_left:
+                    print(f"\n[Monitor] Job {job_id} is no longer running.")
+                    break
+
+            active_reqs = 0
+            metrics_available = False
+            try:
+                req = urllib.request.Request(f"http://{compute_ip}:8000/metrics")
+                with urllib.request.urlopen(req, timeout=5) as response:
+                    metrics = response.read().decode("utf-8")
+                    metrics_available = True
+                for line in metrics.splitlines():
+                    if line.startswith("vllm:num_requests_") and not line.startswith(
+                        "#"
+                    ):
+                        active_reqs += float(line.split()[1])
+
+                if active_reqs == 0:
+                    idle_mins += 1
+                else:
+                    idle_mins = 0
+            except Exception:
+                idle_mins = 0
+
+            if metrics_available:
+                mins_to_watchdog = max_idle_mins - idle_mins
+                sys.stdout.write(
+                    f"\r⏱️  Job Time Left: {time_left} | 🐕 Watchdog kills in: {mins_to_watchdog} mins (Active Reqs: {int(active_reqs)})   "
+                )
+            else:
+                sys.stdout.write(
+                    f"\r⏱️  Job Time Left: {time_left} | 🐕 Watchdog: {max_idle_mins} mins (Metrics unreachable)   "
+                )
+
+            sys.stdout.flush()
+
+            if metrics_available and mins_to_watchdog <= 0:
+                print("\n[Monitor] Watchdog limit reached on compute node. Exiting.")
+                break
+
+            time.sleep(60)
+    except KeyboardInterrupt:
+        print("\n[Monitor] Stopped monitoring. Job is still running on cluster.")
 
 
 def main() -> None:
@@ -156,7 +238,8 @@ def main() -> None:
     print(f"Submitting vLLM Slurm job for model: {model_key}...")
     job_id = submit_job(model_key)
     endpoint_file = monitor_job(job_id)
-    print_success(endpoint_file)
+    compute_ip = print_success(endpoint_file)
+    watch_status(job_id, compute_ip)
 
 
 if __name__ == "__main__":
