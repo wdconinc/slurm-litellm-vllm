@@ -8,7 +8,7 @@ echo "Submitting vLLM Slurm job for model: $MODEL_KEY..."
 # Submit the job
 if [[ "$MODEL_KEY" == *"cpu"* ]]; then
     echo "Detected CPU-only model. Overriding Slurm GPU allocation..."
-    OUTPUT=$(sbatch --partition=cpu --gpus-per-node=0 bin/vllm.sh "$MODEL_KEY" 2>&1)
+    OUTPUT=$(sbatch --partition=skylake --gpus-per-node=0 bin/vllm.sh "$MODEL_KEY" 2>&1)
 else
     OUTPUT=$(sbatch bin/vllm.sh "$MODEL_KEY" 2>&1)
 fi
