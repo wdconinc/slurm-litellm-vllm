@@ -14,8 +14,8 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "$OUTPUT"
-# Extract job ID assuming output format like "Submitted batch job 123456"
-JOB_ID=$(echo "$OUTPUT" | awk '{print $4}')
+# Extract job ID specifically from the 'Submitted batch job' line, ignoring INFO lines
+JOB_ID=$(echo "$OUTPUT" | grep "Submitted batch job" | awk '{print $4}')
 
 if [[ -z "$JOB_ID" || ! "$JOB_ID" =~ ^[0-9]+$ ]]; then
     echo "Warning: Could not parse job ID from sbatch output. Will wait for config file indefinitely."
