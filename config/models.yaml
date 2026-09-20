@@ -66,6 +66,22 @@ smollm-cpu:
       - "--max-model-len 2048"
       - "--enforce-eager"
 
+smollm-cpu-ray:
+  fullname: "HuggingFaceTB/SmolLM-135M-Instruct"
+  slurm:
+    partition: "skylake"
+    nodes: 2
+    gpus_per_node: 0
+    cpus_per_task: 2
+    mem: "16G"
+    time: "01:00:00"
+  vllm:
+    image: "docker://vllm/vllm-openai-cpu:latest-x86_64"
+    args:
+      - "--gpu-memory-utilization 0.1"
+      - "--max-model-len 2048"
+      - "--enforce-eager"
+
 # Aliases
 qwen3: "qwen"
 leanstral: "mistral"

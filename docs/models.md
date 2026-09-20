@@ -7,6 +7,7 @@ The following models are currently pre-configured and validated for the cluster.
 | `qwen` | `Qwen/Qwen3-Coder-Next` | `lgpu` | 2 | 64 | 128G | 04:00:00 |
 | `mistral` | `sahilchachra/Leanstral-1.5-119B-A6B-NVFP4` | `lgpu` | 2 | 64 | 128G | 04:00:00 |
 | `smollm-cpu` | `HuggingFaceTB/SmolLM-135M-Instruct` | `skylake` | 0 | 2 | 16G | 01:00:00 |
+| `smollm-cpu-ray` | `HuggingFaceTB/SmolLM-135M-Instruct` | `skylake` | 0 | 2 | 16G | 01:00:00 |
 
 ## Detailed Configurations
 
@@ -38,6 +39,14 @@ The following models are currently pre-configured and validated for the cluster.
 ### `smollm-cpu`
 - **HuggingFace Path:** `HuggingFaceTB/SmolLM-135M-Instruct`
 - **Hardware Request:** 1 nodes, 0 GPUs, 2 CPUs, 16G RAM on `skylake`
+- **vLLM Arguments:**
+  - `--gpu-memory-utilization 0.1`
+  - `--max-model-len 2048`
+  - `--enforce-eager`
+
+### `smollm-cpu-ray`
+- **HuggingFace Path:** `HuggingFaceTB/SmolLM-135M-Instruct`
+- **Hardware Request:** 2 nodes, 0 GPUs, 2 CPUs, 16G RAM on `skylake`
 - **vLLM Arguments:**
   - `--gpu-memory-utilization 0.1`
   - `--max-model-len 2048`
