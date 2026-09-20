@@ -10,19 +10,13 @@
 #SBATCH --time=04:00:00
 #SBATCH --output=vllm_%j.log
 
-# Get the hostname of the compute node we landed on
-COMPUTE_NODE=$(hostname)
-echo "vLLM is running on: $COMPUTE_NODE"
-
 # Load Singularity
 module load singularity
 
 # Load environment variables from .env if present
 if [ -f "${SLURM_SUBMIT_DIR}/.env" ]; then
-    echo "Loading environment variables from ${SLURM_SUBMIT_DIR}/.env"
     export $(grep -v '^#' "${SLURM_SUBMIT_DIR}/.env" | xargs)
 elif [ -f "$HOME/litellm/etc/.env" ]; then
-    echo "Loading environment variables from $HOME/litellm/etc/.env"
     export $(grep -v '^#' "$HOME/litellm/etc/.env" | xargs)
 fi
 
@@ -31,238 +25,13 @@ if [ -n "$HF_TOKEN" ]; then
     export SINGULARITYENV_HF_TOKEN="$HF_TOKEN"
 fi
 
-# Get the requested model from the first argument (default to mistral)
-MODEL_KEY=${1:-mistral}
-
-case "$MODEL_KEY" in
-    qwen|qwen3)
-        MODEL_NAME="qwen3-coder-next"
-        MODEL_FULLNAME="Qwen/Qwen3-Coder-Next"
-        VLLM_ARGS=(
-            "--enable-auto-tool-choice"
-            "--tool-call-parser" "qwen3_xml"
-            "--max-model-len" "131072"
-            "--gpu-memory-utilization" "0.95"
-            "--quantization" "fp8"
-            "--enable-prefix-caching"
-            "--enable-chunked-prefill"
-            "--trust-remote-code"
-        )
-        ;;
-    mistral|leanstral)
-        MODEL_NAME="mistralai-leanstral"
-        MODEL_FULLNAME="sahilchachra/Leanstral-1.5-119B-A6B-NVFP4"
-        VLLM_ARGS=(
-            "--limit-mm-per-prompt" '{"image": 0}'
-            "--quantization" "compressed-tensors"
-            "--max-model-len" "32764"
-            "--gpu-memory-utilization" "0.90"
-            "--tokenizer-mode" "mistral"
-            "--tool-call-parser" "mistral"
-            "--reasoning-parser" "mistral"
-        )
-        ;;
-    smollm-cpu)
-        MODEL_NAME="smollm-cpu"
-        MODEL_FULLNAME="HuggingFaceTB/SmolLM-135M-Instruct"
-        VLLM_ARGS=(
-            "--max-model-len" "2048"
-            "--enforce-eager"
-        )
-        ;;
-    *)
-        echo "Unknown model key: $MODEL_KEY"
-        echo "Available options: qwen, mistral, smollm-cpu"
-        exit 1
-        ;;
-esac
-
-# Optimize Startup and Downloading
-# Enable ultra-fast Rust-based downloads from HuggingFace
-export SINGULARITYENV_HF_HUB_ENABLE_HF_TRANSFER=1
-
-# Point all caching mechanisms to the fast parallel filesystem instead of the login node's home dir
-export SINGULARITYENV_HF_HOME="/project/6041615/huggingface_cache"
-export SINGULARITYENV_TRITON_CACHE_DIR="/project/6041615/triton_cache"
-export SINGULARITYENV_VLLM_CACHE_ROOT="/project/6041615/vllm_cache"
-
-# Pin the vLLM Docker image version to ensure reproducible cluster runs
-VLLM_IMAGE="docker://vllm/vllm-openai:v0.4.2"
-SING_BIND="--nv --bind /project/6041615"
-
-# Ensure the endpoint file is safely cleaned up when this job exits or is killed
-ENDPOINT_FILE="$HOME/litellm/etc/endpoint.env"
-trap "echo 'Cleaning up endpoint...'; rm -f $ENDPOINT_FILE" EXIT
-
-# Grab the internal 10.x.x.x IP address of the compute node
-INTERNAL_IP=$(hostname -I | awk '{for(i=1;i<=NF;i++) if($i ~ /^10\./) print $i}')
-if [ -z "$INTERNAL_IP" ]; then
-    INTERNAL_IP=$(hostname -I | awk '{print $1}') # Fallback
-fi
-echo "Compute Node Internal IP: $INTERNAL_IP"
-
-# Get number of nodes and GPUs
-NUM_NODES=${SLURM_JOB_NUM_NODES:-1}
-GPUS_PER_NODE=${SLURM_GPUS_PER_NODE:-2}
-
-if [ "$GPUS_PER_NODE" -eq 0 ] || [ "$MODEL_KEY" == "smollm-cpu" ]; then
-    echo "Running in CPU-only mode."
-    VLLM_IMAGE="docker://vllm/vllm-openai-cpu:latest-x86_64"
-    SING_BIND="--bind /project/6041615"
-    TP_SIZE=${NUM_NODES}  # Ray will handle 1 instance per node for CPU tensor parallelism
-else
-    TP_SIZE=$(( NUM_NODES * GPUS_PER_NODE ))
-fi
-
-# If multi-node, we need Ray
-if [ "$NUM_NODES" -gt 1 ]; then
-    echo "Multi-node setup detected ($NUM_NODES nodes). Configuring Ray..."
-    
-    port=6379
-    ip_head="${INTERNAL_IP}:${port}"
-    export ip_head
-    echo "IP Head: $ip_head"
-
-    export SINGULARITYENV_RAY_ADDRESS="$ip_head"
-
-    # Start Ray head on the primary compute node
-    echo "Starting Ray head on $COMPUTE_NODE"
-    srun --nodes=1 --ntasks=1 -w "$COMPUTE_NODE" \
-        singularity exec --cleanenv $SING_BIND "$VLLM_IMAGE" \
-        ray start --head --node-ip-address="$INTERNAL_IP" --port=$port --num-cpus="${SLURM_CPUS_PER_TASK:-64}" --block &
-
-    # Start Ray workers on the other nodes
-    worker_num=$(( NUM_NODES - 1 ))
-    if [ "$worker_num" -gt 0 ]; then
-        echo "Starting Ray workers on remaining $worker_num nodes"
-        srun --nodes="$worker_num" --ntasks="$worker_num" --exclude="$COMPUTE_NODE" \
-            singularity exec --cleanenv $SING_BIND "$VLLM_IMAGE" \
-            ray start --address="$ip_head" --num-cpus="${SLURM_CPUS_PER_TASK:-64}" --block &
-    fi
-    
-    # Wait for ray to be ready
-    sleep 10
-    
-    VLLM_ARGS+=("--worker-use-ray")
-fi
-
-# Run vLLM using Singularity. We bind to 127.0.0.1 to force routing through LiteLLM.
-# By passing $MODEL_FULLNAME instead of a local path, vLLM automatically downloads it
-# (using the ultra-fast hf_transfer) into the shared --download-dir if it doesn't exist.
-singularity exec --cleanenv $SING_BIND "$VLLM_IMAGE" \
-    vllm serve "$MODEL_FULLNAME" \
-    --download-dir "/project/6041615/models" \
-    --served-model-name "$MODEL_FULLNAME" \
-    --host 127.0.0.1 \
-    --port 8000 \
-    --tensor-parallel-size $TP_SIZE \
-    "${VLLM_ARGS[@]}" &
-
-# Capture the Process ID of vLLM
-VLLM_PID=$!
-
-# Wait for the API to boot up
-echo "Waiting for vLLM to initialize..."
-while ! curl -s http://127.0.0.1:8000/health > /dev/null; do
-    if ! kill -0 $VLLM_PID 2>/dev/null; then
-        echo "ERROR: vLLM process died during initialization. Exiting job."
-        exit 1
-    fi
-    sleep 5
-done
-
-echo "vLLM is up and running!"
-
-# Configure LiteLLM to point to local vLLM
-mkdir -p ~/litellm/etc
-cat <<EOF > ~/litellm/etc/dynamic_litellm_config_${SLURM_JOB_ID}.yaml
-model_list:
-  - model_name: my-local-model
-    litellm_params:
-      model: openai/${MODEL_FULLNAME}
-      api_base: http://127.0.0.1:8000/v1
-      api_key: "not-needed"
-EOF
-
-# Dynamically inject Langfuse if credentials are provided
-if [ -n "$LANGFUSE_PUBLIC_KEY" ] && [ -n "$LANGFUSE_SECRET_KEY" ]; then
-    cat <<EOF >> ~/litellm/etc/dynamic_litellm_config_${SLURM_JOB_ID}.yaml
-
-litellm_settings:
-  success_callbacks: ["langfuse"]
-EOF
-    echo "Langfuse observability enabled in LiteLLM config."
-fi
-
-# Start LiteLLM proxy directly on this compute node
-# Move LiteLLM caching away from the user's home directory quota
-export HF_HOME="/project/6041615/huggingface_cache"
-export TIKTOKEN_CACHE_DIR="/project/6041615/tiktoken_cache"
-
-# Use the key from .env, or fallback to the default secret
-export LITELLM_MASTER_KEY="${LITELLM_MASTER_KEY:-sk-hpc-secret-key}"
-export OPENAI_API_KEY="not-needed"
-
 # Automatically activate virtual environment if it exists
 if [ -f "${SLURM_SUBMIT_DIR}/.venv/bin/activate" ]; then
     source "${SLURM_SUBMIT_DIR}/.venv/bin/activate"
 fi
 
-# Determine the correct litellm binary
-LITELLM_CMD="litellm"
-if ! command -v litellm &> /dev/null && [ -f "$HOME/litellm/bin/litellm" ]; then
-    LITELLM_CMD="$HOME/litellm/bin/litellm"
-fi
+# Get the requested model from the first argument (default to mistral)
+MODEL_KEY=${1:-mistral}
 
-$LITELLM_CMD --config ~/litellm/etc/dynamic_litellm_config_${SLURM_JOB_ID}.yaml --host 0.0.0.0 --port 4000 &
-LITELLM_PID=$!
-
-# Publish the endpoint for workers
-echo "export OPENAI_API_BASE=\"http://${INTERNAL_IP}:4000/v1\"" > "$ENDPOINT_FILE"
-echo "export OPENAI_API_KEY=\"${LITELLM_MASTER_KEY}\"" >> "$ENDPOINT_FILE"
-echo "export OPENAI_MODEL=\"my-local-model\"" >> "$ENDPOINT_FILE"
-echo "LiteLLM endpoint published to $ENDPOINT_FILE"
-
-# The Idle Timeout Watchdog
-MAX_IDLE_MINUTES=15
-IDLE_COUNTER=0
-
-while true; do
-    sleep 60 # Check every 60 seconds
-    
-    # Break if vLLM or LiteLLM crashed
-    if ! kill -0 $VLLM_PID 2>/dev/null || ! kill -0 $LITELLM_PID 2>/dev/null; then
-        echo "Critical server process stopped unexpectedly."
-        break
-    fi
-
-    # Fetch metrics and calculate active requests robustly
-    METRICS=$(curl -s http://127.0.0.1:8000/metrics || echo "CURL_FAILED")
-    
-    if [ "$METRICS" == "CURL_FAILED" ]; then
-        echo "Warning: Metrics curl timed out. Assuming server is busy under load."
-        IDLE_COUNTER=0
-        continue
-    fi
-    ACTIVE_REQS=$(echo "$METRICS" | grep -E 'vllm:num_requests_(running|waiting|swapped)' | grep -v '#' | awk '{sum+=$2} END {print sum}')
-    
-    # Check if ACTIVE_REQS is exactly 0 (or empty, just in case)
-    if [[ "$ACTIVE_REQS" == "0" ]] || [[ -z "$ACTIVE_REQS" ]]; then
-        IDLE_COUNTER=$((IDLE_COUNTER + 1))
-        echo "Server idle for $IDLE_COUNTER minute(s)..."
-        
-        if [ "$IDLE_COUNTER" -ge "$MAX_IDLE_MINUTES" ]; then
-            echo "Max idle time ($MAX_IDLE_MINUTES mins) reached. Terminating vLLM to release GPU..."
-            kill -15 $VLLM_PID
-            wait $VLLM_PID
-            echo "Job complete."
-            break
-        fi
-    else
-        # If there is activity, reset the counter
-        if [ "$IDLE_COUNTER" -gt 0 ]; then
-            echo "New request received. Resetting idle timer."
-        fi
-        IDLE_COUNTER=0
-    fi
-done
+# Execute the Python Orchestrator
+python "${SLURM_SUBMIT_DIR}/src/orchestrator.py" "$MODEL_KEY"
