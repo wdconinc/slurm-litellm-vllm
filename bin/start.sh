@@ -29,16 +29,26 @@ ENDPOINT_FILE="$HOME/litellm/etc/endpoint.env"
 rm -f "$ENDPOINT_FILE"
 
 # Wait until the config file is generated
+SECONDS=0
 while [ ! -f "$ENDPOINT_FILE" ]; do
     if [[ -n "$JOB_ID" && "$JOB_ID" =~ ^[0-9]+$ ]]; then
-        if ! squeue -h -j "$JOB_ID" 2>/dev/null | grep -q "$JOB_ID"; then
-            echo "Error: Slurm job $JOB_ID is no longer in the queue. It may have failed during initialization."
+        # Check job status from squeue
+        STATUS=$(squeue -h -j "$JOB_ID" -o "%T" 2>/dev/null | xargs)
+        
+        if [ -z "$STATUS" ]; then
+            echo -e "\n❌ Error: Slurm job $JOB_ID is no longer in the queue. It likely failed."
             echo "Please check vllm_${JOB_ID}.log for details."
             exit 1
         fi
+        
+        # Print status on the same line
+        echo -ne "\r⏳ Waiting for endpoint.env... Job $JOB_ID is [ $STATUS ] (Elapsed: ${SECONDS}s)   "
+    else
+        echo -ne "\r⏳ Waiting for endpoint.env... (Elapsed: ${SECONDS}s)   "
     fi
     sleep 5
 done
+echo -e "\n"
 
 # Source the generated environment variables
 source "$ENDPOINT_FILE"
