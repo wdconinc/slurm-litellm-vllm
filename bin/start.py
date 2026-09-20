@@ -156,6 +156,14 @@ def print_success(endpoint_file: str) -> str:
     print("      HostName grex.hpc.umanitoba.ca")
     print(f"      User {user}")
     print(f"      LocalForward 4000 {compute_ip}:4000")
+    print("\n  Test your connection (from another terminal on your laptop):")
+    print("  curl http://localhost:4000/v1/chat/completions \\")
+    print('    -H "Content-Type: application/json" \\')
+    print('    -H "Authorization: Bearer sk-hpc-secret-key" \\')
+    print("    -d '{")
+    print('      "model": "my-local-model",')
+    print('      "messages": [{"role": "user", "content": "Hello!"}]')
+    print("    }'")
     print("==========================================================")
     return compute_ip
 
