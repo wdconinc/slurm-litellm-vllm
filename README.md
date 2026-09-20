@@ -19,15 +19,15 @@ This repository contains scripts to start an automatically expiring vLLM instanc
 
 ### 1. Submit the vLLM Slurm Job
 
-From the login node, submit the job to request a GPU node and start the vLLM container:
+From the login node, submit the job to request a GPU node and start the vLLM container. You can pass the model key as an argument (defaults to `mistral`):
 
 ```bash
-sbatch bin/vllm.sh
+sbatch bin/vllm.sh mistral   # or 'qwen'
 ```
 
 This script will:
 1. Request 1 node with 2 GPUs and 128GB of memory for up to 4 hours.
-2. Boot up vLLM with the selected model (e.g., `Leanstral-1.5-119B-A6B-NVFP4`).
+2. Boot up vLLM with the selected model (e.g., `Leanstral-1.5-119B-A6B-NVFP4` or `Qwen3-Coder-Next`) and its specific optimized parameters.
 3. Generate the proxy configuration file at `~/litellm/etc/dynamic_litellm_config.yaml`.
 4. Run the watchdog to monitor idle time.
 
@@ -79,6 +79,14 @@ response = client.chat.completions.create(
 print(response.choices[0].message.content)
 ```
 
-## Changing the Model
+## Adding New Models
 
-To change the loaded model, edit `bin/vllm.sh` and update the `MODEL_NAME` and `MODEL_FULLNAME` variables to point to your target model weights in the model directory. Make sure the model specific parsing flags (like `--tool-call-parser`) match your chosen model architecture.
+The application now natively supports multiple models via a `case` statement in `bin/vllm.sh`. The default supported models are `mistral` and `qwen`.
+
+To add a new model:
+1. Open `bin/vllm.sh`.
+2. Locate the `case "$MODEL_KEY" in` section.
+3. Add a new switch case for your model (e.g., `llama3)`).
+4. Define `MODEL_NAME` (directory name in `/project/6041615/models/`) and `MODEL_FULLNAME` (Hugging Face identifier for the served model name).
+5. Specify any custom arguments required for your model as an array in `VLLM_ARGS`.
+6. Submit your job with `sbatch bin/vllm.sh llama3`.

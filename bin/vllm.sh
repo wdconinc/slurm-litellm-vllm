@@ -17,41 +17,54 @@ echo "vLLM is running on: $COMPUTE_NODE"
 # Load Singularity
 module load singularity
 
-# Get the absolute path to where you saved the model
-#MODEL_NAME="qwen3-coder-next"
-#MODEL_FULLNAME="Qwen/Qwen3-Coder-Next"
-MODEL_NAME="mistralai-leanstral"
-MODEL_FULLNAME="sahilchachra/Leanstral-1.5-119B-A6B-NVFP4"
+# Get the requested model from the first argument (default to mistral)
+MODEL_KEY=${1:-mistral}
+
+case "$MODEL_KEY" in
+    qwen|qwen3)
+        MODEL_NAME="qwen3-coder-next"
+        MODEL_FULLNAME="Qwen/Qwen3-Coder-Next"
+        VLLM_ARGS=(
+            "--enable-auto-tool-choice"
+            "--tool-call-parser" "qwen3_xml"
+            "--max-model-len" "131072"
+            "--gpu-memory-utilization" "0.95"
+            "--quantization" "fp8"
+            "--enable-prefix-caching"
+            "--enable-chunked-prefill"
+            "--trust-remote-code"
+        )
+        ;;
+    mistral|leanstral)
+        MODEL_NAME="mistralai-leanstral"
+        MODEL_FULLNAME="sahilchachra/Leanstral-1.5-119B-A6B-NVFP4"
+        VLLM_ARGS=(
+            "--limit-mm-per-prompt" '{"image": 0}'
+            "--quantization" "compressed-tensors"
+            "--max-model-len" "32764"
+            "--gpu-memory-utilization" "0.90"
+            "--tokenizer-mode" "mistral"
+            "--tool-call-parser" "mistral"
+            "--reasoning-parser" "mistral"
+        )
+        ;;
+    *)
+        echo "Unknown model key: $MODEL_KEY"
+        echo "Available options: qwen, mistral"
+        exit 1
+        ;;
+esac
+
 MODEL_PATH="/project/6041615/models/${MODEL_NAME}"
 
 # Run vLLM using Singularity. We bind to 0.0.0.0 so the login node can reach it.
-#singularity exec --cleanenv --nv --bind /project/6041615 docker://vllm/vllm-openai:latest \
-#    vllm serve $MODEL_PATH \
-#    --served-model-name $MODEL_FULLNAME \
-#    --host 0.0.0.0 \
-#    --port 8000 \
-#    --tensor-parallel-size 2 \
-#    --enable-auto-tool-choice \
-#    --tool-call-parser qwen3_xml \
-#    --max-model-len 131072 \
-#    --gpu-memory-utilization 0.95 \
-#    --quantization fp8 \
-#    --enable-prefix-caching \
-#    --enable-chunked-prefill \
-#    --trust-remote-code &
 singularity exec --cleanenv --nv --bind /project/6041615 docker://vllm/vllm-openai:latest \
-    vllm serve $MODEL_PATH \
-    --served-model-name $MODEL_FULLNAME \
+    vllm serve "$MODEL_PATH" \
+    --served-model-name "$MODEL_FULLNAME" \
     --host 0.0.0.0 \
     --port 8000 \
-    --limit-mm-per-prompt '{"image": 0}' \
     --tensor-parallel-size 2 \
-    --quantization compressed-tensors \
-    --max-model-len 32764 \
-    --gpu-memory-utilization 0.90 \
-    --tokenizer-mode mistral \
-    --tool-call-parser mistral \
-    --reasoning-parser mistral &
+    "${VLLM_ARGS[@]}" &
 
 # Capture the Process ID of vLLM
 VLLM_PID=$!
