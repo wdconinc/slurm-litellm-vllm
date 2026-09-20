@@ -81,7 +81,7 @@ def main():
     num_nodes = int(os.getenv("SLURM_JOB_NUM_NODES", "1"))
     gpus_per_node = int(os.getenv("SLURM_GPUS_PER_NODE", "2"))
     
-    vllm_image = "docker://vllm/vllm-openai:v0.4.2"
+    vllm_image = "docker://vllm/vllm-openai:latest"
     sing_bind = ["--nv", "--bind", "/project/6041615"]
     
     if gpus_per_node == 0 or "cpu" in model_key:
@@ -122,8 +122,7 @@ def main():
     # Start vLLM
     print("[Orchestrator] Starting vLLM...")
     vllm_cmd = ["singularity", "exec", "--cleanenv"] + sing_bind + [
-        vllm_image, "python3", "-m", "vllm.entrypoints.openai.api_server",
-        "--model", config["fullname"],
+        vllm_image, "vllm", "serve", config["fullname"],
         "--download-dir", "/project/6041615/models",
         "--served-model-name", config["fullname"],
         "--host", "127.0.0.1", "--port", "8000",
