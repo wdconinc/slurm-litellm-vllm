@@ -17,33 +17,24 @@ This repository contains scripts to start an automatically expiring vLLM instanc
 
 ## Usage
 
-### 1. Submit the vLLM Slurm Job
+### 1. Start the vLLM Server and Proxy
 
-From the login node, submit the job to request a GPU node and start the vLLM container. You can pass the model key as an argument (defaults to `mistral`):
-
-```bash
-sbatch bin/vllm.sh mistral   # or 'qwen'
-```
-
-This script will:
-1. Request 1 node with 2 GPUs and 128GB of memory for up to 4 hours.
-2. Boot up vLLM with the selected model (e.g., `Leanstral-1.5-119B-A6B-NVFP4` or `Qwen3-Coder-Next`) and its specific optimized parameters.
-3. Generate the proxy configuration file at `~/litellm/etc/dynamic_litellm_config.yaml`.
-4. Run the watchdog to monitor idle time.
-
-### 2. Start the LiteLLM Proxy
-
-Once the Slurm job is running and has generated the configuration file, start the LiteLLM proxy on the login node:
+From the login node, simply run the unified startup script. You can optionally pass the model key as an argument (defaults to `mistral`):
 
 ```bash
-./bin/litellm.sh
+./bin/start.sh mistral   # or 'qwen'
 ```
+
+This script will automatically:
+1. Submit the Slurm job (`vllm.sh`) to request a GPU node and start the vLLM container.
+2. Wait for the job to initialize and generate the required proxy configuration.
+3. Automatically launch the LiteLLM proxy on the login node (`127.0.0.1:4000`) as soon as the configuration is ready.
 
 By default, the proxy runs on `127.0.0.1:4000` on the login node.
 
-*(Optional: You can change the `LITELLM_MASTER_KEY` in `bin/litellm.sh` to secure your proxy endpoint).*
+*(Optional: You can change the `LITELLM_MASTER_KEY` directly inside `bin/start.sh` to secure your proxy endpoint).*
 
-### 3. Connect via SSH Port Forwarding
+### 2. Connect via SSH Port Forwarding
 
 To reliably access the LiteLLM proxy from your local machine, it is recommended to configure your `~/.ssh/config` file. This handles the port forwarding automatically and ensures your connection stays alive:
 
