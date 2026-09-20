@@ -12,17 +12,18 @@ flowchart LR
     
     subgraph "HPC Cluster"
         subgraph "Login Node"
-            SSH_Tunnel[SSH Port Forwarding\nLocal:4000 -> Login:4000]
-            StartScript(bin/start.sh)
-            LiteLLM[LiteLLM Proxy\n127.0.0.1:4000]
-            Config[(dynamic_litellm_config.yaml)]
+            SSH_Tunnel["SSH Port Forwarding<br/>Local:4000 -> Compute:4000"]
+            StartScript("bin/start.sh")
+            EndpointEnv[("endpoint.env")]
         end
         
         subgraph "Compute Node (GPU)"
-            vLLMScript(bin/vllm.sh)
-            Singularity[Singularity Container]
-            vLLM[vLLM Server\n0.0.0.0:8000]
-            Watchdog[Idle Timeout Watchdog]
+            vLLMScript("bin/vllm.sh")
+            LiteLLM["LiteLLM Proxy<br/>0.0.0.0:4000"]
+            Config[("dynamic_litellm_config.yaml")]
+            Singularity["Singularity Container"]
+            vLLM["vLLM Server<br/>127.0.0.1:8000"]
+            Watchdog["Idle Timeout Watchdog"]
         end
     end
 
@@ -31,10 +32,12 @@ flowchart LR
     
     StartScript -- "1. sbatch" --> vLLMScript
     vLLMScript -- "2. Generate" --> Config
-    StartScript -- "4. Read & Launch" --> LiteLLM
+    vLLMScript -- "3. Publish" --> EndpointEnv
+    StartScript -- "4. Wait & Read" --> EndpointEnv
     LiteLLM -- "Read Config" --> Config
     
-    vLLMScript -- "3. Start" --> Singularity
+    vLLMScript -- "5. Start Proxy" --> LiteLLM
+    vLLMScript -- "6. Start vLLM" --> Singularity
     Singularity --> vLLM
     vLLM -- "Metrics" --> Watchdog
     
@@ -45,10 +48,10 @@ flowchart LR
 
 ### Components
 
-1. **Start Script (`bin/start.sh`)**: The main entry point. It submits the slurm job, monitors the queue for initialization, and launches LiteLLM.
-2. **vLLM Slurm Job (`bin/vllm.sh`)**: Executes on the compute node. It pulls the specified Hugging Face model from the cluster's parallel filesystem, starts the vLLM server via Singularity, and writes back the dynamically assigned compute node IP to a YAML configuration file.
+1. **Start Script (`bin/start.sh`)**: The main entry point on the login node. It submits the slurm job and waits for the `endpoint.env` file to be populated by the compute node, ensuring you know exactly where to tunnel.
+2. **vLLM Slurm Job (`bin/vllm.sh`)**: Executes on the compute node. It starts the vLLM server via Singularity, dynamically generates the LiteLLM config, launches the LiteLLM proxy in the background, and writes back the compute node's internal IP to `endpoint.env`.
 3. **Idle Timeout Watchdog**: An integrated loop within the slurm script that monitors active connections to vLLM. If the server remains idle for 15 minutes, it terminates the process, relinquishing the GPU resources back to the Slurm scheduler.
-4. **LiteLLM Proxy**: A lightweight server that maps the internal compute node's endpoint into a local `localhost:4000` port, standardizing the format to the OpenAI API specification.
+4. **LiteLLM Proxy**: A lightweight proxy now bundled on the compute node. It maps the internal vLLM endpoint (`127.0.0.1:8000`) into a cluster-accessible standard OpenAI API interface (`0.0.0.0:4000`).
 
 ## Usage Guide
 Refer to the repository's main `README.md` for quickstart setup instructions and connection testing.

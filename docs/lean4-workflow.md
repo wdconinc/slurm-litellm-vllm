@@ -17,8 +17,8 @@ flowchart TD
     end
 
     subgraph "GPU Compute Node"
-        Proxy[LiteLLM Proxy\n(Central Queue / Router)]
-        vLLM[vLLM Server\n(High Throughput Inference)]
+        Proxy["LiteLLM Proxy<br/>(Central Queue / Router)"]
+        vLLM["vLLM Server<br/>(High Throughput Inference)"]
     end
 
     W1 -- "API Request" --> Proxy
@@ -41,9 +41,9 @@ The following sequence diagram illustrates the lifecycle of one of these workers
 
 ```mermaid
 sequenceDiagram
-    participant Worker as CPU Node<br/>(Lean4 Worker)
-    participant Proxy as GPU Node<br/>(LiteLLM Proxy)
-    participant GPU as GPU Node<br/>(vLLM Server)
+    participant Worker as "CPU Node<br/>(Lean4 Worker)"
+    participant Proxy as "GPU Node<br/>(LiteLLM Proxy)"
+    participant GPU as "GPU Node<br/>(vLLM Server)"
 
     Note over Worker: Worker starts CPU-intensive<br/>compilation / proof evaluation
     Worker->>Worker: Compiling...
