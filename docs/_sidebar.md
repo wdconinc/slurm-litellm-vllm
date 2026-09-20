@@ -3,3 +3,4 @@
 * [Distributed Fleet Workflow](lean4-workflow.md)
 * [Runnable Examples](examples.md)
 * [System Architecture](architecture.md)
+* [Supported Models](models.md)
