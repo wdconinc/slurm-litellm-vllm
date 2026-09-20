@@ -78,10 +78,17 @@ export SINGULARITYENV_HF_HOME="/project/6041615/huggingface_cache"
 export SINGULARITYENV_TRITON_CACHE_DIR="/project/6041615/triton_cache"
 export SINGULARITYENV_VLLM_CACHE_ROOT="/project/6041615/vllm_cache"
 
+# Pin the vLLM Docker image version to ensure reproducible cluster runs
+VLLM_IMAGE="docker://vllm/vllm-openai:v0.4.2"
+
+# Ensure the endpoint file is safely cleaned up when this job exits or is killed
+ENDPOINT_FILE="$HOME/litellm/etc/endpoint.env"
+trap "echo 'Cleaning up endpoint...'; rm -f $ENDPOINT_FILE" EXIT
+
 # Run vLLM using Singularity. We bind to 127.0.0.1 to force routing through LiteLLM.
 # By passing $MODEL_FULLNAME instead of a local path, vLLM automatically downloads it
 # (using the ultra-fast hf_transfer) into the shared --download-dir if it doesn't exist.
-singularity exec --cleanenv --nv --bind /project/6041615 docker://vllm/vllm-openai:latest \
+singularity exec --cleanenv --nv --bind /project/6041615 "$VLLM_IMAGE" \
     vllm serve "$MODEL_FULLNAME" \
     --download-dir "/project/6041615/models" \
     --served-model-name "$MODEL_FULLNAME" \
@@ -143,7 +150,6 @@ $LITELLM_CMD --config ~/litellm/etc/dynamic_litellm_config_${SLURM_JOB_ID}.yaml 
 LITELLM_PID=$!
 
 # Publish the endpoint for workers
-ENDPOINT_FILE="$HOME/litellm/etc/endpoint.env"
 echo "export OPENAI_API_BASE=\"http://${INTERNAL_IP}:4000/v1\"" > "$ENDPOINT_FILE"
 echo "export OPENAI_API_KEY=\"${LITELLM_MASTER_KEY}\"" >> "$ENDPOINT_FILE"
 echo "export OPENAI_MODEL=\"my-local-model\"" >> "$ENDPOINT_FILE"
