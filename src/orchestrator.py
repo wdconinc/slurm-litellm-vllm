@@ -40,30 +40,21 @@ def get_internal_ip():
         return "127.0.0.1"
 
 def get_model_config(model_key):
-    models = {
-        "qwen": {
-            "name": "qwen3-coder-next",
-            "fullname": "Qwen/Qwen3-Coder-Next",
-            "args": ["--enable-auto-tool-choice", "--tool-call-parser", "qwen3_xml", "--max-model-len", "131072", "--gpu-memory-utilization", "0.95", "--quantization", "fp8", "--enable-prefix-caching", "--enable-chunked-prefill", "--trust-remote-code"]
-        },
-        "mistral": {
-            "name": "mistralai-leanstral",
-            "fullname": "sahilchachra/Leanstral-1.5-119B-A6B-NVFP4",
-            "args": ["--limit-mm-per-prompt", '{"image": 0}', "--quantization", "compressed-tensors", "--max-model-len", "32764", "--gpu-memory-utilization", "0.90", "--tokenizer-mode", "mistral", "--tool-call-parser", "mistral", "--reasoning-parser", "mistral"]
-        },
-        "smollm-cpu": {
-            "name": "smollm-cpu",
-            "fullname": "HuggingFaceTB/SmolLM-135M-Instruct",
-            "args": ["--max-model-len", "2048", "--enforce-eager"]
-        }
-    }
-    # Map synonyms
-    if model_key == "qwen3": model_key = "qwen"
-    if model_key == "leanstral": model_key = "mistral"
-    
+    config_path = os.path.join(os.path.dirname(__file__), "..", "config", "models.yaml")
+    try:
+        with open(config_path, "r") as f:
+            models = yaml.safe_load(f)
+    except Exception as e:
+        print(f"Error reading config/models.yaml: {e}")
+        sys.exit(1)
+        
+    if model_key in models and isinstance(models[model_key], str):
+        model_key = models[model_key]
+        
     if model_key not in models:
         print(f"Unknown model key: {model_key}")
         sys.exit(1)
+        
     return models[model_key]
 
 def main():
@@ -101,7 +92,7 @@ def main():
     else:
         tp_size = num_nodes * gpus_per_node
 
-    vllm_args = config["args"][:]
+    vllm_args = config.get("vllm", {}).get("args", [])[:]
     
     # Ray Cluster Initialization
     if num_nodes > 1:

@@ -4,11 +4,31 @@ import time
 import subprocess
 
 def submit_job(model_key):
-    cmd = ["sbatch"]
-    if "cpu" in model_key:
-        print("Detected CPU-only model. Overriding Slurm GPU allocation...")
-        cmd.extend(["--partition=skylake", "--gpus-per-node=0", "--cpus-per-task=16"])
+    import yaml
     
+    config_path = os.path.join(os.path.dirname(__file__), "..", "config", "models.yaml")
+    try:
+        with open(config_path, "r") as f:
+            models = yaml.safe_load(f)
+    except Exception as e:
+        print(f"Error reading config/models.yaml: {e}")
+        sys.exit(1)
+        
+    if model_key in models and isinstance(models[model_key], str):
+        model_key = models[model_key] # resolve alias
+        
+    if model_key not in models:
+        print(f"Unknown model key: {model_key}")
+        sys.exit(1)
+        
+    slurm_overrides = models[model_key].get("slurm", {})
+    
+    cmd = ["sbatch"]
+    for key, val in slurm_overrides.items():
+        # e.g., "gpus_per_node" -> "--gpus-per-node"
+        arg = f"--{key.replace('_', '-')}"
+        cmd.append(f"{arg}={val}")
+        
     cmd.extend(["bin/vllm.sh", model_key])
     
     result = subprocess.run(cmd, capture_output=True, text=True)
