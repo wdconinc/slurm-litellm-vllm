@@ -9,7 +9,7 @@ from openai import OpenAI
     not os.getenv("RUN_RAY_INTEGRATION_TEST"),
     reason="Skipping slow multi-node integration test. Set RUN_RAY_INTEGRATION_TEST=1 to run.",
 )
-def test_ray_multi_node_cluster():
+def test_ray_multi_node_cluster() -> None:
     """
     Submits a real 2-node Slurm job to verify that the Ray head and worker nodes
     start correctly, the tensor parallelism scales across the nodes, and the

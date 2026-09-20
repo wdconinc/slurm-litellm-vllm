@@ -1,3 +1,4 @@
+from typing import Any, Dict
 import os
 import sys
 import time
@@ -16,20 +17,19 @@ os.makedirs(RUN_DIR, exist_ok=True)
 ENDPOINT_FILE = os.path.join(RUN_DIR, "endpoint.env")
 
 
-def cleanup():
+def cleanup() -> None:
     print("\n[Orchestrator] Cleaning up resources...")
+    for p in PROCESSES:
+        p.terminate()
     if os.path.exists(ENDPOINT_FILE):
         os.remove(ENDPOINT_FILE)
-    for p in PROCESSES:
-        if p.poll() is None:
-            p.terminate()
-            p.wait()
 
 
 atexit.register(cleanup)
 
 
-def signal_handler(sig, frame):
+def signal_handler(sig: int, frame: Any) -> None:
+    cleanup()
     sys.exit(0)
 
 
@@ -37,18 +37,19 @@ signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 
-def get_internal_ip():
+def get_internal_ip() -> str:
     try:
-        ips = subprocess.check_output(["hostname", "-I"], text=True).strip().split()
-        for ip in ips:
-            if ip.startswith("10."):
-                return ip
-        return ips[0] if ips else "127.0.0.1"
+        # Resolves local IP by connecting to a public DNS server
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
     except Exception:
         return "127.0.0.1"
 
 
-def deep_merge(dict1, dict2):
+def deep_merge(dict1: dict, dict2: dict) -> dict:
     for k, v in dict2.items():
         if isinstance(v, dict) and k in dict1 and isinstance(dict1[k], dict):
             deep_merge(dict1[k], v)
@@ -57,7 +58,7 @@ def deep_merge(dict1, dict2):
     return dict1
 
 
-def get_model_config(model_key):
+def get_model_config(model_key: str) -> Dict[str, Any]:
     config_path = os.path.join(os.path.dirname(__file__), "..", "config", "models.yaml")
     try:
         with open(config_path, "r") as f:
@@ -84,7 +85,7 @@ def get_model_config(model_key):
     return config
 
 
-def main():
+def main() -> None:
     if len(sys.argv) < 2:
         print("Usage: python orchestrator.py <model_key>")
         sys.exit(1)

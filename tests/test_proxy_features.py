@@ -4,7 +4,7 @@ from openai import OpenAI
 
 
 @pytest.fixture(scope="module")
-def client():
+def client() -> OpenAI:
     # Ensure variables exist, else the test should fail gracefully
     api_base = os.getenv("OPENAI_API_BASE")
     api_key = os.getenv("OPENAI_API_KEY")
@@ -17,11 +17,11 @@ def client():
 
 
 @pytest.fixture(scope="module")
-def model_name():
+def model_name() -> str:
     return os.getenv("OPENAI_MODEL", "my-local-model")
 
 
-def test_basic_chat_completion(client, model_name):
+def test_basic_chat_completion(client: OpenAI, model_name: str) -> None:
     """Test a simple user prompt to ensure the proxy is alive and generating text."""
     response = client.chat.completions.create(
         model=model_name,
@@ -38,7 +38,7 @@ def test_basic_chat_completion(client, model_name):
     assert "banana" in content, f"Expected 'banana', got: {content}"
 
 
-def test_system_prompt_adherence(client, model_name):
+def test_system_prompt_adherence(client: OpenAI, model_name: str) -> None:
     """Test that the model respects system prompt instructions."""
     response = client.chat.completions.create(
         model=model_name,
@@ -58,7 +58,7 @@ def test_system_prompt_adherence(client, model_name):
     ), f"Model did not translate to French. Got: {content}"
 
 
-def test_tool_calling(client, model_name):
+def test_tool_calling(client: OpenAI, model_name: str) -> None:
     """Test if the model supports OpenAI-compatible tool/function calling."""
     tools = [
         {
@@ -108,7 +108,7 @@ def test_tool_calling(client, model_name):
     ), f"Model didn't extract 'Boston' correctly. Got arguments: {tool_call.function.arguments}"
 
 
-def test_multi_turn_conversation(client, model_name):
+def test_multi_turn_conversation(client: OpenAI, model_name: str) -> None:
     """Test that the model retains context over multiple messages."""
     messages = [
         {"role": "user", "content": "My favorite color is emerald green."},

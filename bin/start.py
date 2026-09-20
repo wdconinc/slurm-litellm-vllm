@@ -4,7 +4,10 @@ import time
 import subprocess
 
 
-def deep_merge(dict1, dict2):
+from typing import Optional
+
+
+def deep_merge(dict1: dict, dict2: dict) -> dict:
     for k, v in dict2.items():
         if isinstance(v, dict) and k in dict1 and isinstance(dict1[k], dict):
             deep_merge(dict1[k], v)
@@ -13,7 +16,7 @@ def deep_merge(dict1, dict2):
     return dict1
 
 
-def submit_job(model_key):
+def submit_job(model_key: str) -> Optional[str]:
     import yaml
 
     config_path = os.path.join(os.path.dirname(__file__), "..", "config", "models.yaml")
@@ -80,7 +83,7 @@ def submit_job(model_key):
     return job_id
 
 
-def monitor_job(job_id):
+def monitor_job(job_id: Optional[str]) -> str:
     endpoint_file = os.path.join(os.path.dirname(__file__), "..", "run", "endpoint.env")
     if os.path.exists(endpoint_file):
         os.remove(endpoint_file)
@@ -120,7 +123,7 @@ def monitor_job(job_id):
     return endpoint_file
 
 
-def print_success(endpoint_file):
+def print_success(endpoint_file: str) -> None:
     with open(endpoint_file, "r") as f:
         content = f.read()
 
@@ -148,7 +151,7 @@ def print_success(endpoint_file):
     print("==========================================================")
 
 
-def main():
+def main() -> None:
     model_key = sys.argv[1] if len(sys.argv) > 1 else "mistral"
     print(f"Submitting vLLM Slurm job for model: {model_key}...")
     job_id = submit_job(model_key)

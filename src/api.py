@@ -1,6 +1,6 @@
 import os
 import subprocess
-from typing import Optional
+from typing import Optional, Any
 from bin.start import submit_job, monitor_job
 
 
@@ -29,7 +29,7 @@ class SlurmLLMFleet:
         self.api_base: Optional[str] = None
         self.api_key: Optional[str] = None
 
-    def start(self, wait: bool = True):
+    def start(self, wait: bool = True) -> None:
         """Submits the Slurm job and optionally blocks until the Ray cluster and vLLM are online."""
         print(f"🚀 Starting SlurmLLM backend for {self.model}...")
         self.job_id = submit_job(self.model)
@@ -39,7 +39,7 @@ class SlurmLLMFleet:
             self._parse_endpoint()
             print(f"✅ Backend online at {self.api_base}")
 
-    def _parse_endpoint(self):
+    def _parse_endpoint(self) -> None:
         """Reads the dynamic cluster IP from the generated environment file."""
         if not self.endpoint_file or not os.path.exists(self.endpoint_file):
             return
@@ -47,11 +47,11 @@ class SlurmLLMFleet:
         with open(self.endpoint_file, "r") as f:
             for line in f:
                 if "OPENAI_API_BASE" in line:
-                    self.api_base = line.split("=", 1)[1].strip('"')
+                    self.api_base = line.split("=", 1)[1].strip().strip('"')
                 elif "OPENAI_API_KEY" in line:
-                    self.api_key = line.split("=", 1)[1].strip('"')
+                    self.api_key = line.split("=", 1)[1].strip().strip('"')
 
-    def get_openai_client(self):
+    def get_openai_client(self) -> Any:
         """Returns a configured OpenAI Python client connected to the Slurm proxy."""
         if not self.api_base:
             raise ValueError("Backend not ready. Call start(wait=True) first.")
@@ -65,7 +65,7 @@ class SlurmLLMFleet:
                 "The 'openai' package is required. Run: pip install openai"
             )
 
-    def stop(self):
+    def stop(self) -> None:
         """Gracefully terminates the Slurm job and shuts down the Ray cluster."""
         if self.job_id:
             print(f"🛑 Stopping Slurm job {self.job_id}...")
