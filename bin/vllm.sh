@@ -85,6 +85,50 @@ VLLM_IMAGE="docker://vllm/vllm-openai:v0.4.2"
 ENDPOINT_FILE="$HOME/litellm/etc/endpoint.env"
 trap "echo 'Cleaning up endpoint...'; rm -f $ENDPOINT_FILE" EXIT
 
+# Grab the internal 10.x.x.x IP address of the compute node
+INTERNAL_IP=$(hostname -I | awk '{for(i=1;i<=NF;i++) if($i ~ /^10\./) print $i}')
+if [ -z "$INTERNAL_IP" ]; then
+    INTERNAL_IP=$(hostname -I | awk '{print $1}') # Fallback
+fi
+echo "Compute Node Internal IP: $INTERNAL_IP"
+
+# Get number of nodes and GPUs
+NUM_NODES=${SLURM_JOB_NUM_NODES:-1}
+GPUS_PER_NODE=${SLURM_GPUS_PER_NODE:-2}
+TP_SIZE=$(( NUM_NODES * GPUS_PER_NODE ))
+
+# If multi-node, we need Ray
+if [ "$NUM_NODES" -gt 1 ]; then
+    echo "Multi-node setup detected ($NUM_NODES nodes). Configuring Ray..."
+    
+    port=6379
+    ip_head="${INTERNAL_IP}:${port}"
+    export ip_head
+    echo "IP Head: $ip_head"
+
+    export SINGULARITYENV_RAY_ADDRESS="$ip_head"
+
+    # Start Ray head on the primary compute node
+    echo "Starting Ray head on $COMPUTE_NODE"
+    srun --nodes=1 --ntasks=1 -w "$COMPUTE_NODE" \
+        singularity exec --cleanenv --nv --bind /project/6041615 "$VLLM_IMAGE" \
+        ray start --head --node-ip-address="$INTERNAL_IP" --port=$port --num-cpus="${SLURM_CPUS_PER_TASK:-64}" --num-gpus="${GPUS_PER_NODE}" --block &
+
+    # Start Ray workers on the other nodes
+    worker_num=$(( NUM_NODES - 1 ))
+    if [ "$worker_num" -gt 0 ]; then
+        echo "Starting Ray workers on remaining $worker_num nodes"
+        srun --nodes="$worker_num" --ntasks="$worker_num" --exclude="$COMPUTE_NODE" \
+            singularity exec --cleanenv --nv --bind /project/6041615 "$VLLM_IMAGE" \
+            ray start --address="$ip_head" --num-cpus="${SLURM_CPUS_PER_TASK:-64}" --num-gpus="${GPUS_PER_NODE}" --block &
+    fi
+    
+    # Wait for ray to be ready
+    sleep 10
+    
+    VLLM_ARGS+=("--worker-use-ray")
+fi
+
 # Run vLLM using Singularity. We bind to 127.0.0.1 to force routing through LiteLLM.
 # By passing $MODEL_FULLNAME instead of a local path, vLLM automatically downloads it
 # (using the ultra-fast hf_transfer) into the shared --download-dir if it doesn't exist.
@@ -94,7 +138,7 @@ singularity exec --cleanenv --nv --bind /project/6041615 "$VLLM_IMAGE" \
     --served-model-name "$MODEL_FULLNAME" \
     --host 127.0.0.1 \
     --port 8000 \
-    --tensor-parallel-size 2 \
+    --tensor-parallel-size $TP_SIZE \
     "${VLLM_ARGS[@]}" &
 
 # Capture the Process ID of vLLM
@@ -111,13 +155,6 @@ while ! curl -s http://127.0.0.1:8000/health > /dev/null; do
 done
 
 echo "vLLM is up and running!"
-
-# Grab the internal 10.x.x.x IP address of the compute node
-INTERNAL_IP=$(hostname -I | awk '{for(i=1;i<=NF;i++) if($i ~ /^10\./) print $i}')
-if [ -z "$INTERNAL_IP" ]; then
-    INTERNAL_IP=$(hostname -I | awk '{print $1}') # Fallback
-fi
-echo "Compute Node Internal IP: $INTERNAL_IP"
 
 # Configure LiteLLM to point to local vLLM
 mkdir -p ~/litellm/etc
