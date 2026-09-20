@@ -13,7 +13,19 @@ This repository contains scripts to start an automatically expiring vLLM instanc
 - Access to a Slurm cluster (e.g., UManitoba Grex).
 - **Singularity** module available on compute nodes.
 - Local model weights stored in a directory accessible to the compute nodes (default is `/project/6041615/models/`).
-- Python environment with the dependencies in `requirements.txt` installed (primarily for LiteLLM).
+- Python environment with the dependencies in `requirements.txt` installed (primarily for LiteLLM):
+
+  ```bash
+  git clone https://github.com/wdconinc/slurm-litellm-vllm.git
+  cd slurm-litellm-vllm
+
+  # Create and activate a virtual environment (highly recommended)
+  python -m venv .venv
+  source .venv/bin/activate
+
+  # Install requirements
+  pip install -r requirements.txt
+  ```
 
 ## Usage
 

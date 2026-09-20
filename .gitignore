@@ -1,5 +1,7 @@
 *.log
 
+.env
+.venv/
 pyvenv.cfg
 
 bin/

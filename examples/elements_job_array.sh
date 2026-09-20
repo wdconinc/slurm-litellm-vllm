@@ -18,7 +18,12 @@ fi
 # This populates OPENAI_API_BASE, OPENAI_API_KEY, and OPENAI_MODEL
 source "$ENDPOINT_FILE"
 
-# 2. Run the Python script to query the LLM
+# 2. Activate virtual environment if it exists
+if [ -f "$SLURM_SUBMIT_DIR/.venv/bin/activate" ]; then
+    source "$SLURM_SUBMIT_DIR/.venv/bin/activate"
+fi
+
+# 3. Run the Python script to query the LLM
 # The Python openai library automatically detects the environment variables
 echo "Worker ${SLURM_ARRAY_TASK_ID} starting..."
 

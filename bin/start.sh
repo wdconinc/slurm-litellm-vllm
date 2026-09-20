@@ -3,12 +3,7 @@
 # Default model key
 MODEL_KEY=${1:-mistral}
 
-CONFIG_FILE="$HOME/litellm/etc/dynamic_litellm_config.yaml"
-
 echo "Submitting vLLM Slurm job for model: $MODEL_KEY..."
-
-# Remove old config to ensure we wait for the new one
-rm -f "$CONFIG_FILE"
 
 # Submit the job
 OUTPUT=$(sbatch bin/vllm.sh "$MODEL_KEY" 2>&1)

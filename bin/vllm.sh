@@ -128,7 +128,18 @@ EOF
 export LITELLM_MASTER_KEY="${LITELLM_MASTER_KEY:-sk-hpc-secret-key}"
 export OPENAI_API_KEY="not-needed"
 
-~/litellm/bin/litellm --config ~/litellm/etc/dynamic_litellm_config_${SLURM_JOB_ID}.yaml --host 0.0.0.0 --port 4000 &
+# Automatically activate virtual environment if it exists
+if [ -f "${SLURM_SUBMIT_DIR}/.venv/bin/activate" ]; then
+    source "${SLURM_SUBMIT_DIR}/.venv/bin/activate"
+fi
+
+# Determine the correct litellm binary
+LITELLM_CMD="litellm"
+if ! command -v litellm &> /dev/null && [ -f "$HOME/litellm/bin/litellm" ]; then
+    LITELLM_CMD="$HOME/litellm/bin/litellm"
+fi
+
+$LITELLM_CMD --config ~/litellm/etc/dynamic_litellm_config_${SLURM_JOB_ID}.yaml --host 0.0.0.0 --port 4000 &
 LITELLM_PID=$!
 
 # Publish the endpoint for workers
