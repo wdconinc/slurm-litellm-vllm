@@ -72,12 +72,14 @@ print(response.choices[0].message.content)
 
 ## Adding New Models
 
-The application now natively supports multiple models via a `case` statement in `bin/vllm.sh`. The default supported models are `mistral` and `qwen`.
+The application natively supports multiple models via a `case` statement in `bin/vllm.sh`. The default supported models are `mistral` and `qwen`.
 
 To add a new model:
 1. Open `bin/vllm.sh`.
 2. Locate the `case "$MODEL_KEY" in` section.
 3. Add a new switch case for your model (e.g., `llama3)`).
-4. Define `MODEL_NAME` (directory name in `/project/6041615/models/`) and `MODEL_FULLNAME` (Hugging Face identifier for the served model name).
+4. Define `MODEL_NAME` (internal identifier) and `MODEL_FULLNAME` (the exact Hugging Face repository ID, e.g., `meta-llama/Meta-Llama-3-8B-Instruct`).
 5. Specify any custom arguments required for your model as an array in `VLLM_ARGS`.
 6. Submit your job with `sbatch bin/vllm.sh llama3`.
+
+*Note: You no longer need to download models manually. The infrastructure will automatically download missing models into `/project/6041615/models` using ultra-fast rust-based `hf_transfer`, and cache all compiled PyTorch graphs and Hugging Face assets directly on the parallel filesystem for incredibly fast subsequent startups.*

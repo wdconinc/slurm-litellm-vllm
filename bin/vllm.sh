@@ -55,11 +55,21 @@ case "$MODEL_KEY" in
         ;;
 esac
 
-MODEL_PATH="/project/6041615/models/${MODEL_NAME}"
+# Optimize Startup and Downloading
+# Enable ultra-fast Rust-based downloads from HuggingFace
+export SINGULARITYENV_HF_HUB_ENABLE_HF_TRANSFER=1
+
+# Point all caching mechanisms to the fast parallel filesystem instead of the login node's home dir
+export SINGULARITYENV_HF_HOME="/project/6041615/huggingface_cache"
+export SINGULARITYENV_TRITON_CACHE_DIR="/project/6041615/triton_cache"
+export SINGULARITYENV_VLLM_CACHE_ROOT="/project/6041615/vllm_cache"
 
 # Run vLLM using Singularity. We bind to 127.0.0.1 to force routing through LiteLLM.
+# By passing $MODEL_FULLNAME instead of a local path, vLLM automatically downloads it
+# (using the ultra-fast hf_transfer) into the shared --download-dir if it doesn't exist.
 singularity exec --cleanenv --nv --bind /project/6041615 docker://vllm/vllm-openai:latest \
-    vllm serve "$MODEL_PATH" \
+    vllm serve "$MODEL_FULLNAME" \
+    --download-dir "/project/6041615/models" \
     --served-model-name "$MODEL_FULLNAME" \
     --host 127.0.0.1 \
     --port 8000 \
