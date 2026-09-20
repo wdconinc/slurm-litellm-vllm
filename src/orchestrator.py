@@ -200,10 +200,18 @@ def main():
     os.environ["LITELLM_MASTER_KEY"] = master_key
     os.environ["OPENAI_API_KEY"] = "not-needed"
     
-    litellm_cmd = "litellm"
-    if not subprocess.run(["command", "-v", "litellm"], capture_output=True, shell=True).returncode == 0:
-        if os.path.exists(os.path.expanduser("~/litellm/bin/litellm")):
+    import shutil
+    litellm_cmd = shutil.which("litellm")
+    if not litellm_cmd:
+        venv_bin = os.path.dirname(sys.executable)
+        fallback = os.path.join(venv_bin, "litellm")
+        if os.path.exists(fallback):
+            litellm_cmd = fallback
+        elif os.path.exists(os.path.expanduser("~/litellm/bin/litellm")):
             litellm_cmd = os.path.expanduser("~/litellm/bin/litellm")
+        else:
+            print("[Orchestrator] ERROR: Could not find 'litellm' executable.")
+            sys.exit(1)
             
     litellm_port = str(config.get("litellm", {}).get("port", "4000"))
     proxy_proc = subprocess.Popen([litellm_cmd, "--config", yaml_path, "--host", "0.0.0.0", "--port", litellm_port])
