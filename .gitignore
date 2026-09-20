@@ -1,0 +1,9 @@
+*.log
+
+pyvenv.cfg
+
+bin/
+etc/
+lib/
+lib64
+share/
