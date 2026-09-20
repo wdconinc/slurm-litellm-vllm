@@ -38,6 +38,37 @@ While workers *could* technically connect directly to the vLLM IP, using the Lit
 2. **Stable Endpoint**: The vLLM job might restart or move to a different compute node (changing its internal IP). The LiteLLM proxy remains stable on the login node; it dynamically reloads its configuration when the new vLLM job starts. The workers never need to know the GPU node's IP.
 3. **Standardization**: It enforces the OpenAI API specification perfectly.
 
+### Workflow Sequence
+
+The following sequence diagram illustrates the lifecycle of one of these workers interacting with the centralized LLM during a typical proof search or compilation task:
+
+```mermaid
+sequenceDiagram
+    participant Worker as CPU Node<br/>(Lean4 Worker)
+    participant Proxy as Login Node<br/>(LiteLLM Proxy)
+    participant GPU as GPU Node<br/>(vLLM Server)
+
+    Note over Worker: Worker starts CPU-intensive<br/>compilation / proof evaluation
+    Worker->>Worker: Compiling...
+    Worker->>Worker: Evaluates tactics...
+    
+    Note over Worker: Encounters complex goal<br/>Requires LLM suggestion
+    Worker->>Proxy: POST /v1/chat/completions<br/>(Prompt: Suggest Lean4 tactic)
+    
+    Note over Proxy: Proxy receives request,<br/>adds to queue if busy
+    Proxy->>GPU: Forward request to vLLM
+    
+    Note over GPU: High-throughput inference<br/>(Generates tactic)
+    GPU-->>Proxy: Return JSON Response
+    Proxy-->>Worker: Return OpenAI-format Response
+    
+    Note over Worker: Worker resumes execution
+    Worker->>Worker: Applies suggested tactic
+    Worker->>Worker: Continues compilation...
+    
+    Note over GPU: If no requests for 15 mins,<br/>Watchdog terminates vLLM
+```
+
 ---
 
 ## Setting up the Fleet Workflow
