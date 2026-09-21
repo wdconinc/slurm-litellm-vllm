@@ -119,8 +119,8 @@ leanstral:
   vllm:
     image: "docker://vllm/vllm-openai:v0.29.0"
     args:
-      - "--tensor-parallel-size 2"
-      - "--pipeline-parallel-size 2"
+      - "--tensor-parallel-size 4"
+      - "--distributed-executor-backend mp"
       - "--quantization fp8"
       - "--max-model-len 32768"
       - "--gpu-memory-utilization 0.95"
