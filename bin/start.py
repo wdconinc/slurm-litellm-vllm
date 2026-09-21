@@ -49,15 +49,55 @@ def run_preflight_checks(model_key: str, config: dict) -> None:
                 f"[Preflight] ⚠️  Warning: Could not verify Hugging Face repository '{hf_repo}' ({e})."
             )
 
-    # 2. Check for hardware mismatch (NVFP4)
-    if hf_repo and ("NVFP4" in hf_repo.upper() or "FP4" in hf_repo.upper()):
-        print(
-            f"[Preflight] ❌ Error: Model '{model_key}' uses FP4 quantization, which is only supported on Blackwell GPUs."
-        )
-        print(
-            "[Preflight] ❌ This cluster uses Ada Lovelace (L40S) GPUs. Execution will fail. Aborting."
-        )
-        sys.exit(1)
+    # 2. Check for hardware mismatch using cluster.yaml
+    import yaml
+
+    cluster_config_path = os.path.join(
+        os.path.dirname(__file__), "..", "config", "cluster.yaml"
+    )
+    partition = config.get("slurm", {}).get("partition")
+
+    if os.path.exists(cluster_config_path) and partition:
+        try:
+            with open(cluster_config_path, "r") as f:
+                cluster_data = yaml.safe_load(f)
+
+            part_info = cluster_data.get("partitions", {}).get(partition)
+            if part_info:
+                gpu_type = part_info.get("gpu_type", "").upper()
+
+                # Check FP4
+                if hf_repo and ("NVFP4" in hf_repo.upper() or "FP4" in hf_repo.upper()):
+                    if gpu_type not in ["B100", "B200", "GB200"]:
+                        print(
+                            f"[Preflight] ❌ Error: Model '{model_key}' uses FP4 quantization, which is only supported on Blackwell GPUs."
+                        )
+                        print(
+                            f"[Preflight] ❌ You requested partition '{partition}', which uses {gpu_type} GPUs. Execution will fail. Aborting."
+                        )
+                        sys.exit(1)
+
+                # Check FP8
+                is_fp8 = False
+                if hf_repo and "FP8" in hf_repo.upper():
+                    is_fp8 = True
+                for arg in config.get("vllm", {}).get("args", []):
+                    if "fp8" in arg.lower():
+                        is_fp8 = True
+
+                if is_fp8:
+                    if gpu_type in ["V100", "A30", "A40", "A100"]:
+                        print(
+                            f"[Preflight] ⚠️  Warning: Model '{model_key}' uses FP8 quantization."
+                        )
+                        print(
+                            f"[Preflight] ⚠️  Partition '{partition}' uses {gpu_type} GPUs, which do NOT natively support FP8 tensor cores."
+                        )
+                        print(
+                            "[Preflight] ⚠️  vLLM may crash or run extremely slowly due to fallback dequantization."
+                        )
+        except Exception as e:
+            print(f"[Preflight] ⚠️  Warning: Could not read cluster.yaml ({e}).")
 
     # 3. Check for sbatch
     if not shutil.which("sbatch"):

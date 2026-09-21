@@ -1,0 +1,58 @@
+partitions:
+  # General Purpose
+  gpu:
+    nodes: 2
+    gpu_type: "V100"
+    gpus_per_node: 4
+    gpu_mem_gb: 32
+    cpus_per_node: 32
+    mem_gb: 187
+    preemptible: false
+    notes: "Intel AVX512 CPU, NVLink"
+  lgpu:
+    nodes: 2
+    gpu_type: "L40s"
+    gpus_per_node: 2
+    gpu_mem_gb: 48
+    cpus_per_node: 64
+    mem_gb: 380
+    preemptible: false
+    notes: "AMD AVX512 CPU"
+
+  # Preemptible
+  stamps:
+    nodes: 3
+    gpu_type: "V100"
+    gpus_per_node: 4
+    gpu_mem_gb: 16
+    cpus_per_node: 32
+    mem_gb: 187
+    preemptible: true
+    notes: "AVX512 CPU, NVLink"
+  livi:
+    nodes: 1
+    gpu_type: "V100"
+    gpus_per_node: 16
+    gpu_mem_gb: 32
+    cpus_per_node: 48
+    mem_gb: 1500
+    preemptible: true
+    notes: "NVSwitch, AVX512 CPU"
+  agro:
+    nodes: 2
+    gpu_type: "A30"
+    gpus_per_node: 2
+    gpu_mem_gb: 24
+    cpus_per_node: 24
+    mem_gb: 250
+    preemptible: true
+    notes: "AMD AVX2 CPU"
+  mcordgpu:
+    nodes: 2
+    gpu_type: "A30"
+    gpus_per_node: 4
+    gpu_mem_gb: 24
+    cpus_per_node: 32
+    mem_gb: 512
+    preemptible: true
+    notes: "AMD AVX2 CPU"
