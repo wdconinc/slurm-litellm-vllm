@@ -48,7 +48,6 @@ leanstral:
       - "--gpu-memory-utilization 0.90"
       - "--tokenizer-mode mistral"
       - "--tool-call-parser mistral"
-      - "--reasoning-parser mistral"
 
 smollm-cpu:
   fullname: "HuggingFaceTB/SmolLM-135M-Instruct"
