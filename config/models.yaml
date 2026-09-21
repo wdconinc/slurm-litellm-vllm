@@ -104,7 +104,7 @@ llama-70b:
       - "--gpu-memory-utilization 0.95"
 
 mistral-large:
-  fullname: "neuralmagic/Mistral-Large-Instruct-2407-FP8-Dynamic"
+  fullname: "neuralmagic/Mistral-Large-Instruct-2407-FP8"
   slurm:
     partition: "lgpu"
     nodes: 2

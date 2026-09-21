@@ -9,7 +9,7 @@ The following models are currently pre-configured and validated for the cluster.
 | `smollm-cpu` | `HuggingFaceTB/SmolLM-135M-Instruct` | `skylake` | 0 | 2 | 16G | 01:00:00 |
 | `smollm-cpu-ray` | `HuggingFaceTB/SmolLM-135M-Instruct` | `skylake` | 0 | 2 | 16G | 01:00:00 |
 | `llama-70b` | `meta-llama/Llama-3.1-70B-Instruct` | `lgpu` | 2 | 32 | 128G | 04:00:00 |
-| `mistral-large` | `neuralmagic/Mistral-Large-Instruct-2407-FP8-Dynamic` | `lgpu` | 2 | 32 | 128G | 04:00:00 |
+| `mistral-large` | `neuralmagic/Mistral-Large-Instruct-2407-FP8` | `lgpu` | 2 | 32 | 128G | 04:00:00 |
 
 ## Detailed Configurations
 
@@ -64,7 +64,7 @@ The following models are currently pre-configured and validated for the cluster.
   - `--gpu-memory-utilization 0.95`
 
 ### `mistral-large`
-- **HuggingFace Path:** `neuralmagic/Mistral-Large-Instruct-2407-FP8-Dynamic`
+- **HuggingFace Path:** `neuralmagic/Mistral-Large-Instruct-2407-FP8`
 - **Hardware Request:** 2 nodes, 2 GPUs, 32 CPUs, 128G RAM on `lgpu`
 - **vLLM Arguments:**
   - `--tensor-parallel-size 2`
