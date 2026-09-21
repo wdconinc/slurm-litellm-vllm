@@ -277,6 +277,27 @@ def main() -> None:
     healthy = False
     while vllm_proc.poll() is None:
         try:
+            # Mistral3 architecture models require a preprocessor_config.json which is often missing.
+            # We silently inject it into the HF cache while vLLM is downloading the safetensors.
+            model_dir = "models--" + config["fullname"].replace("/", "--")
+            snapshot_dir_path = os.path.join(vllm_download_dir, model_dir, "snapshots")
+            if os.path.exists(snapshot_dir_path):
+                for snap in os.listdir(snapshot_dir_path):
+                    snap_path = os.path.join(snapshot_dir_path, snap)
+                    if os.path.isdir(snap_path):
+                        prep_file = os.path.join(snap_path, "preprocessor_config.json")
+                        if not os.path.exists(prep_file):
+                            with open(prep_file, "w") as f:
+                                f.write(
+                                    '{"image_processor_type": "PixtralImageProcessor", "processor_class": "PixtralProcessor", "size": {"longest_edge": 1024}}'
+                                )
+                            log_msg(
+                                f"[Orchestrator] Injected missing preprocessor_config.json into {snap_path}"
+                            )
+        except Exception:
+            pass
+
+        try:
             r = requests.get(f"http://{vllm_host}:{vllm_port}/health", timeout=2)
             if r.status_code == 200:
                 healthy = True
