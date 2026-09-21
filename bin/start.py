@@ -169,7 +169,6 @@ def print_success(endpoint_file: str) -> str:
 
 
 def watch_status(job_id: Optional[str], compute_ip: str) -> None:
-    import urllib.request
     import yaml
     import signal
 
@@ -239,24 +238,21 @@ def watch_status(job_id: Optional[str], compute_ip: str) -> None:
 
             active_reqs = 0
             metrics_available = False
+            watchdog_file = os.path.join(
+                os.path.dirname(__file__), "..", "run", "watchdog.env"
+            )
             try:
-                req = urllib.request.Request(f"http://{compute_ip}:8000/metrics")
-                with urllib.request.urlopen(req, timeout=5) as response:
-                    metrics = response.read().decode("utf-8")
-                    metrics_available = True
-                for line in metrics.splitlines():
-                    if line.startswith("vllm:num_requests_") and not line.startswith(
-                        "#"
-                    ):
-                        active_reqs += float(line.split()[1])
-
-                if active_reqs == 0:
-                    idle_mins += 1
-                else:
-                    idle_mins = 0
+                if os.path.exists(watchdog_file):
+                    with open(watchdog_file, "r") as f:
+                        for line in f:
+                            if line.startswith("IDLE_MINS="):
+                                idle_mins = int(line.strip().split("=")[1])
+                            elif line.startswith("ACTIVE_REQS="):
+                                active_reqs = int(line.strip().split("=")[1])
+                                if active_reqs >= 0:
+                                    metrics_available = True
             except Exception:
-                idle_mins = 0
-
+                pass
             mins_to_watchdog = max_idle_mins - idle_mins
             is_fg = True
             try:

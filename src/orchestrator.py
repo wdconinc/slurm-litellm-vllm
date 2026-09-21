@@ -331,6 +331,8 @@ def main() -> None:
     # Idle Watchdog
     max_idle_mins = int(config.get("watchdog", {}).get("max_idle_mins", 15))
     idle_mins = 0
+    watchdog_env_path = os.path.join(RUN_DIR, "watchdog.env")
+
     while vllm_proc.poll() is None and proxy_proc.poll() is None:
         time.sleep(60)
         try:
@@ -353,9 +355,17 @@ def main() -> None:
                 if idle_mins > 0:
                     print("[Watchdog] New request received. Resetting timer.")
                 idle_mins = 0
+
+            with open(watchdog_env_path, "w") as f:
+                f.write(f"IDLE_MINS={idle_mins}\nACTIVE_REQS={int(active_reqs)}\n")
         except Exception as e:
             print(f"[Watchdog] Error fetching metrics: {e}")
             idle_mins = 0
+            try:
+                with open(watchdog_env_path, "w") as f:
+                    f.write(f"IDLE_MINS={idle_mins}\nACTIVE_REQS=-1\n")
+            except Exception:
+                pass
 
     print("[Orchestrator] Shutting down.")
 
