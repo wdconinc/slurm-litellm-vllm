@@ -118,7 +118,7 @@ def main() -> None:
     gpus_per_node = int(os.getenv("SLURM_GPUS_PER_NODE", "2"))
 
     vllm_image = config.get("vllm", {}).get(
-        "image", "docker://vllm/vllm-openai:v0.6.3.post1"
+        "image", "docker://vllm/vllm-openai:v0.29.0"
     )
     sing_bind_path = config.get("vllm", {}).get("sing_bind", "/project/6041615")
     vllm_host = config.get("vllm", {}).get("host", "127.0.0.1")
