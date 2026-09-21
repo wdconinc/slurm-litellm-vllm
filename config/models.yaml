@@ -85,3 +85,35 @@ smollm-cpu-ray:
 # Aliases
 qwen3: "qwen"
 leanstral: "mistral"
+
+llama-70b:
+  fullname: "meta-llama/Llama-3.1-70B-Instruct"
+  slurm:
+    partition: "lgpu"
+    nodes: 2
+    gpus_per_node: 2
+    cpus_per_task: 32
+    mem: "128G"
+    time: "04:00:00"
+  vllm:
+    args:
+      - "--tensor-parallel-size 2"
+      - "--pipeline-parallel-size 2"
+      - "--max-model-len 32768"
+      - "--gpu-memory-utilization 0.95"
+
+mistral-large:
+  fullname: "neuralmagic/Mistral-Large-Instruct-2407-FP8-Dynamic"
+  slurm:
+    partition: "lgpu"
+    nodes: 2
+    gpus_per_node: 2
+    cpus_per_task: 32
+    mem: "128G"
+    time: "04:00:00"
+  vllm:
+    args:
+      - "--tensor-parallel-size 2"
+      - "--pipeline-parallel-size 2"
+      - "--max-model-len 32768"
+      - "--gpu-memory-utilization 0.95"

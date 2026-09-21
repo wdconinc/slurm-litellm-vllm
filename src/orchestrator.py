@@ -207,7 +207,7 @@ def main() -> None:
 
     # Start vLLM
     print("[Orchestrator] Starting vLLM...")
-    vllm_cmd = (
+    base_vllm_cmd = (
         ["singularity", "exec", "--cleanenv"]
         + sing_bind
         + [
@@ -223,11 +223,16 @@ def main() -> None:
             vllm_host,
             "--port",
             vllm_port,
-            "--tensor-parallel-size",
-            str(tp_size),
         ]
-        + vllm_args
     )
+
+    has_tp = any(
+        a.startswith("--tensor-parallel-size") or a.startswith("-tp") for a in vllm_args
+    )
+    if not has_tp:
+        base_vllm_cmd.extend(["--tensor-parallel-size", str(tp_size)])
+
+    vllm_cmd = base_vllm_cmd + vllm_args
 
     vllm_proc = subprocess.Popen(vllm_cmd)
     PROCESSES.append(vllm_proc)

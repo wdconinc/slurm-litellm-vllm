@@ -8,6 +8,8 @@ The following models are currently pre-configured and validated for the cluster.
 | `mistral` | `sahilchachra/Leanstral-1.5-119B-A6B-NVFP4` | `lgpu` | 2 | 64 | 128G | 04:00:00 |
 | `smollm-cpu` | `HuggingFaceTB/SmolLM-135M-Instruct` | `skylake` | 0 | 2 | 16G | 01:00:00 |
 | `smollm-cpu-ray` | `HuggingFaceTB/SmolLM-135M-Instruct` | `skylake` | 0 | 2 | 16G | 01:00:00 |
+| `llama-70b` | `meta-llama/Llama-3.1-70B-Instruct` | `lgpu` | 2 | 32 | 128G | 04:00:00 |
+| `mistral-large` | `neuralmagic/Mistral-Large-Instruct-2407-FP8-Dynamic` | `lgpu` | 2 | 32 | 128G | 04:00:00 |
 
 ## Detailed Configurations
 
@@ -51,4 +53,22 @@ The following models are currently pre-configured and validated for the cluster.
   - `--gpu-memory-utilization 0.1`
   - `--max-model-len 2048`
   - `--enforce-eager`
+
+### `llama-70b`
+- **HuggingFace Path:** `meta-llama/Llama-3.1-70B-Instruct`
+- **Hardware Request:** 2 nodes, 2 GPUs, 32 CPUs, 128G RAM on `lgpu`
+- **vLLM Arguments:**
+  - `--tensor-parallel-size 2`
+  - `--pipeline-parallel-size 2`
+  - `--max-model-len 32768`
+  - `--gpu-memory-utilization 0.95`
+
+### `mistral-large`
+- **HuggingFace Path:** `neuralmagic/Mistral-Large-Instruct-2407-FP8-Dynamic`
+- **Hardware Request:** 2 nodes, 2 GPUs, 32 CPUs, 128G RAM on `lgpu`
+- **vLLM Arguments:**
+  - `--tensor-parallel-size 2`
+  - `--pipeline-parallel-size 2`
+  - `--max-model-len 32768`
+  - `--gpu-memory-utilization 0.95`
 
