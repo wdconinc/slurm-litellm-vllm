@@ -324,6 +324,7 @@ def main() -> None:
     # Publish endpoint
     with open(ENDPOINT_FILE, "w") as f:
         f.write(f'export OPENAI_API_BASE="http://{internal_ip}:{litellm_port}/v1"\n')
+        f.write(f'export OPENAI_BASE_URL="http://{internal_ip}:{litellm_port}/v1"\n')
         f.write(f'export OPENAI_API_KEY="{master_key}"\n')
         f.write('export OPENAI_MODEL="my-local-model"\n')
     print(f"[Orchestrator] Endpoint published to {ENDPOINT_FILE}")
