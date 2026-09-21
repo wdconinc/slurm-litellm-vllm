@@ -160,6 +160,16 @@ def main() -> None:
         cpus_per_task = os.getenv("SLURM_CPUS_PER_TASK", "64")
 
         # Head node
+        ray_head_args = [
+            "--head",
+            f"--node-ip-address={internal_ip}",
+            f"--port={ray_port}",
+            f"--num-cpus={cpus_per_task}",
+            "--block",
+        ]
+        if gpus_per_node > 0:
+            ray_head_args.insert(-1, f"--num-gpus={gpus_per_node}")
+
         head_cmd = (
             [
                 "srun",
@@ -172,21 +182,21 @@ def main() -> None:
                 "--cleanenv",
             ]
             + sing_bind
-            + [
-                vllm_image,
-                "ray",
-                "start",
-                "--head",
-                f"--node-ip-address={internal_ip}",
-                f"--port={ray_port}",
-                f"--num-cpus={cpus_per_task}",
-                "--block",
-            ]
+            + [vllm_image, "ray", "start"]
+            + ray_head_args
         )
         PROCESSES.append(subprocess.Popen(head_cmd))
 
         # Worker nodes
         if num_nodes - 1 > 0:
+            ray_worker_args = [
+                f"--address={ip_head}",
+                f"--num-cpus={cpus_per_task}",
+                "--block",
+            ]
+            if gpus_per_node > 0:
+                ray_worker_args.insert(-1, f"--num-gpus={gpus_per_node}")
+
             worker_cmd = (
                 [
                     "srun",
@@ -199,14 +209,8 @@ def main() -> None:
                     "--cleanenv",
                 ]
                 + sing_bind
-                + [
-                    vllm_image,
-                    "ray",
-                    "start",
-                    f"--address={ip_head}",
-                    f"--num-cpus={cpus_per_task}",
-                    "--block",
-                ]
+                + [vllm_image, "ray", "start"]
+                + ray_worker_args
             )
             PROCESSES.append(subprocess.Popen(worker_cmd))
 
