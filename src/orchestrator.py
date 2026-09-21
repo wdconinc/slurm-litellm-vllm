@@ -114,7 +114,7 @@ def main() -> None:
     compute_node = socket.gethostname()
     log_msg(f"[Orchestrator] Running on {compute_node} (IP: {internal_ip})")
 
-    num_nodes = int(os.getenv("SLURM_JOB_NUM_NODES", "1"))
+    num_nodes = int(os.getenv("SLURM_NNODES", os.getenv("SLURM_JOB_NUM_NODES", "1")))
     gpus_per_node = int(os.getenv("SLURM_GPUS_PER_NODE", "2"))
 
     vllm_image = config.get("vllm", {}).get(

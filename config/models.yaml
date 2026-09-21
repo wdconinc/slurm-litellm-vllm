@@ -71,6 +71,7 @@ smollm-cpu-ray:
   slurm:
     partition: "skylake"
     nodes: 2
+    ntasks_per_node: 1
     gpus_per_node: 0
     cpus_per_task: 2
     mem: "16G"
