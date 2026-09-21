@@ -163,6 +163,26 @@ def main() -> None:
         log_msg(
             f"[Orchestrator] Multi-node setup detected ({num_nodes} nodes). Configuring Ray..."
         )
+
+        # In newer vLLM versions (v0.6.0+), the 'vllm-openai' image strips 'ray' to save space.
+        # We ensure it's installed in the user's home directory so Ray clustering works.
+        try:
+            log_msg("[Orchestrator] Verifying/installing Ray in user environment...")
+            subprocess.check_call(
+                ["singularity", "exec", "--cleanenv"]
+                + sing_bind
+                + [vllm_image, "python3", "-m", "pip", "install", "--user", "ray"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except Exception as e:
+            log_msg(f"[Orchestrator] Warning: Failed to ensure Ray is installed: {e}")
+
+        # Ensure the installed ray executable in ~/.local/bin is in the PATH
+        local_bin = os.path.join(os.environ.get("HOME", "/root"), ".local/bin")
+        os.environ["SINGULARITYENV_APPEND_PATH"] = local_bin
+        os.environ["APPTAINERENV_APPEND_PATH"] = local_bin
+
         ray_port = "6379"
         ip_head = f"{internal_ip}:{ray_port}"
         os.environ["SINGULARITYENV_RAY_ADDRESS"] = ip_head

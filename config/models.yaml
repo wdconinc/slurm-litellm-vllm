@@ -1,6 +1,6 @@
 defaults:
   vllm:
-    image: "docker://vllm/vllm:v0.6.3.post1"
+    image: "docker://vllm/vllm-openai:v0.6.3.post1"
     download_dir: "/project/6041615/models"
     singularity_cache: "/project/6041615/singularity_cache"
     host: "127.0.0.1"
@@ -117,7 +117,6 @@ leanstral:
     mem: "256G"
     time: "04:00:00"
   vllm:
-    image: "docker://vllm/vllm:v0.6.3.post1"
     args:
       - "--tensor-parallel-size 4"
       - "--quantization fp8"
@@ -137,7 +136,6 @@ leanstral-community:
     mem: "256G"
     time: "04:00:00"
   vllm:
-    image: "docker://vllm/vllm:v0.6.3.post1"
     args:
       - "--tensor-parallel-size 4"
       - "--quantization fp8"
