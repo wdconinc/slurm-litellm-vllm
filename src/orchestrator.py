@@ -227,17 +227,11 @@ def main() -> None:
         time.sleep(10)
         has_backend = any("distributed-executor-backend" in a for a in vllm_args)
         if not has_backend:
-            vllm_args.append("--worker-use-ray")
+            vllm_args.extend(["--distributed-executor-backend", "ray"])
 
     # Start vLLM
     log_msg("[Orchestrator] Starting vLLM...")
-    base_vllm_cmd = []
-    if num_nodes > 1 and not use_ray:
-        # For 'mp' backend, we must use srun to spawn vllm serve across all allocated nodes.
-        # Torch distributed will use Slurm environment variables natively.
-        base_vllm_cmd.extend(["srun"])
-
-    base_vllm_cmd.extend(
+    base_vllm_cmd = (
         ["singularity", "exec", "--cleanenv"]
         + sing_bind
         + [
@@ -265,10 +259,6 @@ def main() -> None:
     vllm_cmd = base_vllm_cmd + vllm_args
 
     env = os.environ.copy()
-    if num_nodes > 1 and not use_ray:
-        env["SINGULARITYENV_MASTER_ADDR"] = internal_ip
-        env["SINGULARITYENV_MASTER_PORT"] = "29500"
-
     vllm_proc = subprocess.Popen(vllm_cmd, env=env)
     PROCESSES.append(vllm_proc)
 
