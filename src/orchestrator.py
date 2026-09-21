@@ -94,7 +94,7 @@ def main() -> None:
     config = get_model_config(model_key)
 
     # Environment Setup
-    os.environ["SINGULARITYENV_HF_HUB_ENABLE_HF_TRANSFER"] = "1"
+    os.environ["SINGULARITYENV_HF_XET_HIGH_PERFORMANCE"] = "1"
     os.environ["SINGULARITYENV_HF_HOME"] = "/project/6041615/huggingface_cache"
     os.environ["SINGULARITYENV_TRITON_CACHE_DIR"] = "/project/6041615/triton_cache"
     os.environ["SINGULARITYENV_VLLM_CACHE_ROOT"] = "/project/6041615/vllm_cache"
