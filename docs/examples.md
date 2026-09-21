@@ -17,7 +17,7 @@ Each job:
 1. **Start the LLM Backend**:
    Ensure you have a running GPU backend first by executing the unified start script from the root of the repository:
    ```bash
-   ./bin/start.sh mistral
+   ./bin/start.sh leanstral
    ```
 
 2. **Wait for Initialization**:

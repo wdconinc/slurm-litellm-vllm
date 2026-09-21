@@ -5,7 +5,7 @@ The following models are currently pre-configured and validated for the cluster.
 | Key | Fullname | Partition | GPUs | CPUs | RAM | Time |
 |---|---|---|---|---|---|---|
 | `qwen` | `Qwen/Qwen3-Coder-Next` | `lgpu` | 2 | 64 | 128G | 04:00:00 |
-| `mistral` | `sahilchachra/Leanstral-1.5-119B-A6B-NVFP4` | `lgpu` | 2 | 64 | 128G | 04:00:00 |
+| `leanstral` | `sahilchachra/Leanstral-1.5-119B-A6B-NVFP4` | `lgpu` | 2 | 64 | 128G | 04:00:00 |
 | `smollm-cpu` | `HuggingFaceTB/SmolLM-135M-Instruct` | `skylake` | 0 | 2 | 16G | 01:00:00 |
 | `smollm-cpu-ray` | `HuggingFaceTB/SmolLM-135M-Instruct` | `skylake` | 0 | 2 | 16G | 01:00:00 |
 | `llama-70b` | `meta-llama/Llama-3.1-70B-Instruct` | `lgpu` | 2 | 32 | 128G | 04:00:00 |
@@ -26,7 +26,7 @@ The following models are currently pre-configured and validated for the cluster.
   - `--enable-chunked-prefill`
   - `--trust-remote-code`
 
-### `mistral` (Aliases: `leanstral`)
+### `leanstral`
 - **HuggingFace Path:** `sahilchachra/Leanstral-1.5-119B-A6B-NVFP4`
 - **Hardware Request:** 1 nodes, 2 GPUs, 64 CPUs, 128G RAM on `lgpu`
 - **vLLM Arguments:**

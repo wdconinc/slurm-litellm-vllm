@@ -25,7 +25,7 @@ This allows automated integration testing, queue-based autoscaling, and dynamic 
 Models are centrally defined using YAML. This cleanly separates infrastructure logic from specific model settings:
 
 ```yaml
-mistral:
+leanstral:
   fullname: "sahilchachra/Leanstral-1.5-119B-A6B-NVFP4"
   slurm:
     partition: "lgpu"

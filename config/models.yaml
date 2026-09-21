@@ -31,7 +31,7 @@ qwen:
       - "--enable-chunked-prefill"
       - "--trust-remote-code"
 
-mistral:
+leanstral:
   fullname: "sahilchachra/Leanstral-1.5-119B-A6B-NVFP4"
   slurm:
     partition: "lgpu"
@@ -85,7 +85,6 @@ smollm-cpu-ray:
 
 # Aliases
 qwen3: "qwen"
-leanstral: "mistral"
 
 llama-70b:
   fullname: "meta-llama/Llama-3.1-70B-Instruct"
