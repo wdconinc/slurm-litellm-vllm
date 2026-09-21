@@ -412,6 +412,35 @@ def watch_status(job_id: Optional[str], compute_ip: str) -> None:
 
 
 def main() -> None:
+    if len(sys.argv) > 1 and sys.argv[1] in ("-h", "--help"):
+        print("Usage: ./bin/start.sh [MODEL_KEY]")
+        print("\nDescription:")
+        print(
+            "  Submits a vLLM backend to the Slurm queue, monitors its initialization,"
+        )
+        print("  and displays the local proxy connection variables once healthy.")
+        print("\nAvailable Models (configured in config/models.yaml):")
+
+        import yaml
+
+        config_path = os.path.join(
+            os.path.dirname(__file__), "..", "config", "models.yaml"
+        )
+        try:
+            with open(config_path, "r") as f:
+                data = yaml.safe_load(f)
+            models = [k for k in data.keys() if k != "defaults"]
+            for m in models:
+                if isinstance(data[m], str):
+                    print(f"  - {m} (alias -> {data[m]})")
+                else:
+                    print(f"  - {m}")
+        except Exception:
+            print("  (Could not parse config/models.yaml)")
+
+        print("\nDefault MODEL_KEY: mistral-large")
+        sys.exit(0)
+
     model_key = sys.argv[1] if len(sys.argv) > 1 else "mistral-large"
     print(f"Submitting vLLM Slurm job for model: {model_key}...")
     job_id = submit_job(model_key)
