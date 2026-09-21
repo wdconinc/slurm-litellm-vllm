@@ -16,6 +16,76 @@ def deep_merge(dict1: dict, dict2: dict) -> dict:
     return dict1
 
 
+def run_preflight_checks(model_key: str, config: dict) -> None:
+    print("[Preflight] Running validation checks...")
+    import urllib.request
+    import urllib.error
+    import shutil
+
+    # 1. Check HuggingFace Repository
+    hf_repo = config.get("fullname")
+    if hf_repo:
+        try:
+            req = urllib.request.Request(f"https://huggingface.co/api/models/{hf_repo}")
+            hf_token = os.getenv("HF_TOKEN")
+            if hf_token:
+                req.add_header("Authorization", f"Bearer {hf_token}")
+
+            urllib.request.urlopen(req, timeout=5)
+            print(f"[Preflight] ✅ Hugging Face repository '{hf_repo}' is accessible.")
+        except urllib.error.HTTPError as e:
+            print(
+                f"[Preflight] ⚠️  Warning: Hugging Face API returned HTTP {e.code} for '{hf_repo}'."
+            )
+            if e.code in (401, 403, 404):
+                print(
+                    "[Preflight] ⚠️  If this is a public model, check for typos in the name."
+                )
+                print(
+                    "[Preflight] ⚠️  If it is private, ensure your HF_TOKEN is valid and exported."
+                )
+        except Exception as e:
+            print(
+                f"[Preflight] ⚠️  Warning: Could not verify Hugging Face repository '{hf_repo}' ({e})."
+            )
+
+    # 2. Check for hardware mismatch (NVFP4)
+    if hf_repo and ("NVFP4" in hf_repo.upper() or "FP4" in hf_repo.upper()):
+        print(
+            f"[Preflight] ❌ Error: Model '{model_key}' uses FP4 quantization, which is only supported on Blackwell GPUs."
+        )
+        print(
+            "[Preflight] ❌ This cluster uses Ada Lovelace (L40S) GPUs. Execution will fail. Aborting."
+        )
+        sys.exit(1)
+
+    # 3. Check for sbatch
+    if not shutil.which("sbatch"):
+        print(
+            "[Preflight] ⚠️  Warning: 'sbatch' command not found. Are you on a Slurm login node?"
+        )
+
+    # 4. Check Slurm Partition
+    partition = config.get("slurm", {}).get("partition")
+    if partition and shutil.which("sinfo"):
+        try:
+            sinfo = subprocess.run(
+                ["sinfo", "-h", "-o", "%P"], capture_output=True, text=True
+            )
+            if sinfo.returncode == 0:
+                partitions = [
+                    p.strip().replace("*", "") for p in sinfo.stdout.splitlines()
+                ]
+                if partition not in partitions and partitions:
+                    print(
+                        f"[Preflight] ⚠️  Warning: Partition '{partition}' does not seem to exist on this Slurm cluster."
+                    )
+        except Exception:
+            pass
+
+    print("[Preflight] Validation complete.\n")
+
+
 def submit_job(model_key: str) -> Optional[str]:
     import yaml
 
@@ -43,6 +113,9 @@ def submit_job(model_key: str) -> Optional[str]:
     deep_merge(config, model_config)
 
     slurm_overrides = config.get("slurm", {})
+
+    # Run Preflight Validation
+    run_preflight_checks(model_key, config)
 
     cmd = ["sbatch"]
     for key, val in slurm_overrides.items():
