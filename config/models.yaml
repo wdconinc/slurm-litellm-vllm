@@ -101,3 +101,23 @@ mistral-large:
       - "--pipeline-parallel-size 2"
       - "--max-model-len 32768"
       - "--gpu-memory-utilization 0.95"
+
+leanstral:
+  fullname: "sahilchachra/Leanstral-1.5-119B-A6B-BF16"
+  slurm:
+    partition: "lgpu"
+    nodes: 2
+    ntasks: 2
+    gpus_per_node: 2
+    cpus_per_task: 32
+    mem: "380G"
+    time: "04:00:00"
+  vllm:
+    image: "docker://vllm/vllm-openai:v0.29.0"
+    args:
+      - "--tensor-parallel-size 2"
+      - "--pipeline-parallel-size 2"
+      - "--quantization fp8"
+      - "--max-model-len 32768"
+      - "--gpu-memory-utilization 0.95"
+      - "--trust-remote-code"
