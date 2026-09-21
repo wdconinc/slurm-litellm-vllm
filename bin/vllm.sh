@@ -2,8 +2,6 @@
 #SBATCH --job-name=vllm-serve
 #SBATCH --account=def-wdconinc
 #SBATCH --partition=lgpu
-#SBATCH --nodes=1
-#SBATCH --ntasks=1
 #SBATCH --cpus-per-task=64
 #SBATCH --gpus-per-node=2
 #SBATCH --mem=128G

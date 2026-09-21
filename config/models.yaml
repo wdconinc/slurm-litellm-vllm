@@ -71,7 +71,7 @@ smollm-cpu-ray:
   slurm:
     partition: "skylake"
     nodes: 2
-    ntasks_per_node: 1
+    ntasks: 2
     gpus_per_node: 0
     cpus_per_task: 2
     mem: "16G"
@@ -91,7 +91,7 @@ llama-70b:
   slurm:
     partition: "lgpu"
     nodes: 2
-    ntasks_per_node: 1
+    ntasks: 2
     gpus_per_node: 2
     cpus_per_task: 32
     mem: "128G"
@@ -108,7 +108,7 @@ mistral-large:
   slurm:
     partition: "lgpu"
     nodes: 2
-    ntasks_per_node: 1
+    ntasks: 2
     gpus_per_node: 2
     cpus_per_task: 32
     mem: "128G"
