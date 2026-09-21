@@ -9,6 +9,14 @@ import yaml
 import requests
 import atexit
 
+import datetime
+
+
+def log_msg(msg: str) -> None:
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{timestamp}] {msg}", flush=True)
+
+
 # Global list of child processes to clean up
 PROCESSES = []
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -64,14 +72,14 @@ def get_model_config(model_key: str) -> Dict[str, Any]:
         with open(config_path, "r") as f:
             data = yaml.safe_load(f)
     except Exception as e:
-        print(f"Error reading config/models.yaml: {e}")
+        log_msg(f"Error reading config/models.yaml: {e}")
         sys.exit(1)
 
     if model_key in data and isinstance(data[model_key], str):
         model_key = data[model_key]
 
     if model_key not in data:
-        print(f"Unknown model key: {model_key}")
+        log_msg(f"Unknown model key: {model_key}")
         sys.exit(1)
 
     defaults = data.get("defaults", {})
@@ -87,7 +95,7 @@ def get_model_config(model_key: str) -> Dict[str, Any]:
 
 def main() -> None:
     if len(sys.argv) < 2:
-        print("Usage: python orchestrator.py <model_key>")
+        log_msg("Usage: python orchestrator.py <model_key>")
         sys.exit(1)
 
     model_key = sys.argv[1]
@@ -104,7 +112,7 @@ def main() -> None:
 
     internal_ip = get_internal_ip()
     compute_node = socket.gethostname()
-    print(f"[Orchestrator] Running on {compute_node} (IP: {internal_ip})")
+    log_msg(f"[Orchestrator] Running on {compute_node} (IP: {internal_ip})")
 
     num_nodes = int(os.getenv("SLURM_JOB_NUM_NODES", "1"))
     gpus_per_node = int(os.getenv("SLURM_GPUS_PER_NODE", "2"))
@@ -126,7 +134,7 @@ def main() -> None:
         os.makedirs(singularity_cache, exist_ok=True)
 
     if gpus_per_node == 0 or "cpu" in model_key:
-        print("[Orchestrator] Running in CPU-only mode.")
+        log_msg("[Orchestrator] Running in CPU-only mode.")
         sing_bind = ["--bind", sing_bind_path]
         tp_size = num_nodes
     else:
@@ -142,7 +150,7 @@ def main() -> None:
 
     # Ray Cluster Initialization
     if num_nodes > 1:
-        print(
+        log_msg(
             f"[Orchestrator] Multi-node setup detected ({num_nodes} nodes). Configuring Ray..."
         )
         ray_port = "6379"
@@ -206,7 +214,7 @@ def main() -> None:
         vllm_args.append("--worker-use-ray")
 
     # Start vLLM
-    print("[Orchestrator] Starting vLLM...")
+    log_msg("[Orchestrator] Starting vLLM...")
     base_vllm_cmd = (
         ["singularity", "exec", "--cleanenv"]
         + sing_bind
@@ -238,7 +246,7 @@ def main() -> None:
     PROCESSES.append(vllm_proc)
 
     # Wait for vLLM health
-    print("[Orchestrator] Waiting for vLLM health check...")
+    log_msg("[Orchestrator] Waiting for vLLM health check...")
     healthy = False
     while vllm_proc.poll() is None:
         try:
@@ -251,10 +259,10 @@ def main() -> None:
         time.sleep(5)
 
     if not healthy:
-        print("[Orchestrator] vLLM failed to start.")
+        log_msg("[Orchestrator] vLLM failed to start.")
         sys.exit(1)
 
-    print("[Orchestrator] vLLM is up and running!")
+    log_msg("[Orchestrator] vLLM is up and running!")
 
     # LiteLLM Configuration
     job_id = os.getenv("SLURM_JOB_ID", "local")
@@ -275,13 +283,13 @@ def main() -> None:
 
     if os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"):
         litellm_config["litellm_settings"] = {"success_callbacks": ["langfuse"]}
-        print("[Orchestrator] Langfuse observability enabled.")
+        log_msg("[Orchestrator] Langfuse observability enabled.")
 
     with open(yaml_path, "w") as f:
         yaml.dump(litellm_config, f)
 
     # Start LiteLLM
-    print("[Orchestrator] Starting LiteLLM Proxy...")
+    log_msg("[Orchestrator] Starting LiteLLM Proxy...")
     master_key = os.getenv("LITELLM_MASTER_KEY", "sk-hpc-secret-key")
     os.environ["LITELLM_MASTER_KEY"] = master_key
     os.environ["OPENAI_API_KEY"] = "not-needed"
@@ -302,7 +310,7 @@ def main() -> None:
                 break
 
         if not litellm_cmd:
-            print(
+            log_msg(
                 f"[Orchestrator] ERROR: Could not find 'litellm' executable. Checked PATH and {fallbacks}"
             )
             sys.exit(1)
@@ -327,7 +335,7 @@ def main() -> None:
         f.write(f'export OPENAI_BASE_URL="http://{internal_ip}:{litellm_port}/v1"\n')
         f.write(f'export OPENAI_API_KEY="{master_key}"\n')
         f.write('export OPENAI_MODEL="my-local-model"\n')
-    print(f"[Orchestrator] Endpoint published to {ENDPOINT_FILE}")
+    log_msg(f"[Orchestrator] Endpoint published to {ENDPOINT_FILE}")
 
     # Idle Watchdog
     max_idle_mins = int(config.get("watchdog", {}).get("max_idle_mins", 15))
@@ -346,21 +354,21 @@ def main() -> None:
 
             if active_reqs == 0:
                 idle_mins += 1
-                print(f"[Watchdog] Server idle for {idle_mins} minute(s)...")
+                log_msg(f"[Watchdog] Server idle for {idle_mins} minute(s)...")
                 if idle_mins >= max_idle_mins:
-                    print(
+                    log_msg(
                         f"[Watchdog] Max idle time ({max_idle_mins} mins) reached. Terminating."
                     )
                     break
             else:
                 if idle_mins > 0:
-                    print("[Watchdog] New request received. Resetting timer.")
+                    log_msg("[Watchdog] New request received. Resetting timer.")
                 idle_mins = 0
 
             with open(watchdog_env_path, "w") as f:
                 f.write(f"IDLE_MINS={idle_mins}\nACTIVE_REQS={int(active_reqs)}\n")
         except Exception as e:
-            print(f"[Watchdog] Error fetching metrics: {e}")
+            log_msg(f"[Watchdog] Error fetching metrics: {e}")
             idle_mins = 0
             try:
                 with open(watchdog_env_path, "w") as f:
@@ -368,7 +376,7 @@ def main() -> None:
             except Exception:
                 pass
 
-    print("[Orchestrator] Shutting down.")
+    log_msg("[Orchestrator] Shutting down.")
 
 
 if __name__ == "__main__":
