@@ -89,35 +89,51 @@ def monitor_job(job_id: Optional[str]) -> str:
         os.remove(endpoint_file)
 
     start_time = time.time()
+    status = ""
 
-    while not os.path.exists(endpoint_file):
-        elapsed = int(time.time() - start_time)
-        if job_id:
-            squeue_res = subprocess.run(
-                ["squeue", "-h", "-j", job_id, "-o", "%T"],
-                capture_output=True,
-                text=True,
-            )
-            status = squeue_res.stdout.strip()
-
-            if not status:
-                print(
-                    f"\n❌ Error: Slurm job {job_id} is no longer in the queue. It likely failed."
+    try:
+        while not os.path.exists(endpoint_file):
+            elapsed = int(time.time() - start_time)
+            if job_id:
+                squeue_res = subprocess.run(
+                    ["squeue", "-h", "-j", job_id, "-o", "%T"],
+                    capture_output=True,
+                    text=True,
                 )
-                print(f"Please check vllm_{job_id}.log for details.")
-                sys.exit(1)
+                status = squeue_res.stdout.strip()
 
-            sys.stdout.write(
-                f"\r⏳ Waiting for endpoint.env... Job {job_id} is [ {status} ] (Elapsed: {elapsed}s)   "
+                if not status:
+                    print(
+                        f"\n❌ Error: Slurm job {job_id} is no longer in the queue. It likely failed."
+                    )
+                    print(f"Please check vllm_{job_id}.log for details.")
+                    sys.exit(1)
+
+                sys.stdout.write(
+                    f"\r⏳ Waiting for endpoint.env... Job {job_id} is [ {status} ] (Elapsed: {elapsed}s)   "
+                )
+                sys.stdout.flush()
+            else:
+                sys.stdout.write(
+                    f"\r⏳ Waiting for endpoint.env... (Elapsed: {elapsed}s)   "
+                )
+                sys.stdout.flush()
+
+            time.sleep(5)
+    except KeyboardInterrupt:
+        if job_id and status == "PENDING":
+            print(
+                f"\n[Monitor] Caught KeyboardInterrupt. Canceling pending job {job_id}..."
             )
-            sys.stdout.flush()
+            subprocess.run(["scancel", job_id])
+            sys.exit(0)
         else:
-            sys.stdout.write(
-                f"\r⏳ Waiting for endpoint.env... (Elapsed: {elapsed}s)   "
+            print(
+                f"\n[Monitor] Caught KeyboardInterrupt. Job {job_id} is {status or 'in an unknown state'}."
             )
-            sys.stdout.flush()
-
-        time.sleep(5)
+            if job_id:
+                print(f"Run 'scancel {job_id}' manually if you wish to terminate it.")
+            sys.exit(0)
 
     print("\n")
     return endpoint_file
