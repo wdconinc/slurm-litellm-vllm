@@ -97,6 +97,14 @@ Open `.env` and configure your settings:
 
 The `bin/vllm.sh` script automatically reads this `.env` file on startup and passes the necessary credentials securely into the Singularity container.
 
+## Documentation
+
+- [Adding New Models](docs/models.md)
+- [Architecture & Design](docs/architecture.md)
+- [Automated Slurm Dependencies (Pipelines)](docs/slurm-dependencies.md)
+- [Multi-Node Jobs & Ray](docs/ray-cluster.md)
+- [Interactive Lean 4 Workflow](docs/lean4-workflow.md)
+
 ## Adding New Models
 
 Model definitions and their specific HPC hardware requirements are centrally configured in a declarative YAML file located at **`config/models.yaml`**. 
