@@ -1,0 +1,33 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "slurm-cluster": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "HPC vLLM Cluster",
+      "options": {
+        "baseURL": "http://localhost:4000/v1",
+        "apiKey": "sk-hpc-secret-key"
+      },
+      "models": {
+        "qwen": {
+          "name": "Qwen3 Coder Next"
+        },
+        "leanstral": {
+          "name": "Leanstral (119B)"
+        },
+        "leanstral-community": {
+          "name": "Leanstral Community (119B)"
+        },
+        "llama-70b": {
+          "name": "Llama 3 70B Instruct"
+        },
+        "mistral-large": {
+          "name": "Mistral Large 2407"
+        },
+        "smollm-cpu": {
+          "name": "SmolLM (CPU)"
+        }
+      }
+    }
+  }
+}

@@ -16,15 +16,36 @@ Below are configuration guides for common clients.
 
 ## OpenCode
 
-[OpenCode](https://github.com/) and similar CLI-based AI coding assistants usually rely on standard environment variables to route requests. 
+[OpenCode](https://github.com/) can be configured to use your local cluster by providing a custom `opencode.json` configuration file. Create or update `opencode.json` in the root of your project:
 
-You can configure OpenCode by setting the following environment variables in your terminal before running it:
-
-```bash
-export OPENAI_API_BASE="http://localhost:4000/v1"
-export OPENAI_API_KEY="sk-hpc-secret-key" # Must match LITELLM_MASTER_KEY in bin/start.sh
-export OPENAI_MODEL="my-local-model"      # The model_name defined in the litellm config
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "slurm-cluster": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "HPC vLLM Cluster",
+      "options": {
+        "baseURL": "http://localhost:4000/v1",
+        "apiKey": "sk-hpc-secret-key"
+      },
+      "models": {
+        "qwen": {
+          "name": "Qwen3 Coder Next"
+        },
+        "leanstral": {
+          "name": "Leanstral (119B)"
+        },
+        "llama-70b": {
+          "name": "Llama 3 70B Instruct"
+        }
+      }
+    }
+  }
+}
 ```
+
+Then you can specify the provider and model when running OpenCode, e.g., `opencode --model slurm-cluster:leanstral`.
 
 ---
 
