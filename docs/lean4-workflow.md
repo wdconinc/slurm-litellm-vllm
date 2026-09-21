@@ -73,7 +73,7 @@ sequenceDiagram
 ### 1. Launch the Centralized LLM
 First, start the vLLM job and the proxy from the login node:
 ```bash
-./bin/start.sh leanstral
+./bin/start.sh mistral-large
 ```
 *Note: If your compute nodes cannot reach `127.0.0.1` on the login node, you may need to update `bin/start.sh` to bind LiteLLM to `0.0.0.0` or the login node's internal network IP (e.g., `--host 0.0.0.0`).*
 

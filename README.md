@@ -31,10 +31,10 @@ This repository contains scripts to start an automatically expiring vLLM instanc
 
 ### 1. Start the vLLM Server and Proxy
 **Via Terminal:**
-From the login node, simply run the unified startup script. You can optionally pass the model key as an argument (defaults to `leanstral`):
+From the login node, simply run the unified startup script. You can optionally pass the model key as an argument (defaults to `mistral-large`):
 
 ```bash
-./bin/start.sh leanstral   # or 'smollm-cpu'
+./bin/start.sh mistral-large   # or 'smollm-cpu'
 ```
 
 **Via Python API (Jupyter Notebooks):**

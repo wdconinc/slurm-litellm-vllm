@@ -22,7 +22,7 @@ class SlurmLLMFleet:
         fleet.stop()
     """
 
-    def __init__(self, model: str = "leanstral"):
+    def __init__(self, model: str = "mistral-large"):
         self.model = model
         self.job_id: Optional[str] = None
         self.endpoint_file: Optional[str] = None

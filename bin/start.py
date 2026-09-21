@@ -299,7 +299,7 @@ def watch_status(job_id: Optional[str], compute_ip: str) -> None:
 
 
 def main() -> None:
-    model_key = sys.argv[1] if len(sys.argv) > 1 else "leanstral"
+    model_key = sys.argv[1] if len(sys.argv) > 1 else "mistral-large"
     print(f"Submitting vLLM Slurm job for model: {model_key}...")
     job_id = submit_job(model_key)
     endpoint_file = monitor_job(job_id)

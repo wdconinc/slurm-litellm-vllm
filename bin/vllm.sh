@@ -26,8 +26,8 @@ if [ -f "${SLURM_SUBMIT_DIR}/.venv/bin/activate" ]; then
     source "${SLURM_SUBMIT_DIR}/.venv/bin/activate"
 fi
 
-# Get the requested model from the first argument (default to leanstral)
-MODEL_KEY=${1:-leanstral}
+# Get the requested model from the first argument (default to mistral-large)
+MODEL_KEY=${1:-mistral-large}
 
 # Execute the Python Orchestrator
 python -u "${SLURM_SUBMIT_DIR}/src/orchestrator.py" "$MODEL_KEY"
