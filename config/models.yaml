@@ -106,7 +106,7 @@ mistral-large:
       - "--gpu-memory-utilization 0.95"
 
 leanstral:
-  fullname: "sahilchachra/Leanstral-1.5-119B-A6B-BF16"
+  fullname: "mistralai/Leanstral-2603"
   slurm:
     partition: "lgpu"
     nodes: 2
