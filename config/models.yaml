@@ -31,24 +31,6 @@ qwen:
       - "--enable-chunked-prefill"
       - "--trust-remote-code"
 
-leanstral:
-  fullname: "sahilchachra/Leanstral-1.5-119B-A6B-NVFP4"
-  slurm:
-    partition: "lgpu"
-    nodes: 1
-    gpus_per_node: 2
-    cpus_per_task: 64
-    mem: "128G"
-    time: "04:00:00"
-  vllm:
-    args:
-      - "--limit-mm-per-prompt image=0"
-      - "--quantization compressed-tensors"
-      - "--max-model-len 32764"
-      - "--gpu-memory-utilization 0.90"
-      - "--tokenizer-mode mistral"
-      - "--tool-call-parser mistral"
-      - "--trust-remote-code"
 
 smollm-cpu:
   fullname: "HuggingFaceTB/SmolLM-135M-Instruct"
