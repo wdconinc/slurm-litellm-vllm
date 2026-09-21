@@ -123,7 +123,7 @@ leanstral:
       - "--distributed-executor-backend mp"
       - "--quantization fp8"
       - "--tokenizer mistral-experimental/pixtral-12b"
-      - "--chat-template /app/config/leanstral_chat_template.jinja"
+      - "--chat-template config/leanstral_chat_template.jinja"
       - "--max-model-len 32768"
       - "--gpu-memory-utilization 0.95"
       - "--trust-remote-code"
