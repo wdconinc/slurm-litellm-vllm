@@ -36,6 +36,7 @@ The following models are currently pre-configured and validated for the cluster.
   - `--gpu-memory-utilization 0.90`
   - `--tokenizer-mode mistral`
   - `--tool-call-parser mistral`
+  - `--trust-remote-code`
 
 ### `smollm-cpu`
 - **HuggingFace Path:** `HuggingFaceTB/SmolLM-135M-Instruct`
