@@ -26,10 +26,10 @@ Models are centrally defined using YAML. This cleanly separates infrastructure l
 
 ```yaml
 mistral-large:
-  fullname: "sahilchachra/Leanstral-1.5-119B-A6B-NVFP4"
+  fullname: "neuralmagic/Mistral-Large-Instruct-2407-FP8"
   slurm:
     partition: "lgpu"
-    nodes: 1
+    nodes: 2
     gpus_per_node: 2
     cpus_per_task: 64
     mem: "128G"
