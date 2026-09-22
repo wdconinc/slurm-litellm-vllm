@@ -33,8 +33,11 @@ Below are configuration guides for common clients.
         "qwen": {
           "name": "Qwen3 Coder Next"
         },
-        "leanstral": {
-          "name": "Leanstral (119B)"
+        "leanstral-2603": {
+          "name": "Leanstral 2603 (119B)"
+        },
+        "leanstral-1.5": {
+          "name": "Leanstral 1.5 (119B)"
         },
         "llama-70b": {
           "name": "Llama 3 70B Instruct"
@@ -45,7 +48,7 @@ Below are configuration guides for common clients.
 }
 ```
 
-Then you can specify the provider and model when running OpenCode, e.g., `opencode --model slurm-cluster:leanstral`.
+Then you can specify the provider and model when running OpenCode, e.g., `opencode --model slurm-cluster:leanstral-1.5`.
 
 ---
 

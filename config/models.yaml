@@ -105,7 +105,7 @@ mistral-large:
       - "--max-model-len 32768"
       - "--gpu-memory-utilization 0.95"
 
-leanstral:
+leanstral-2603:
   fullname: "mistralai/Leanstral-2603"
   slurm:
     partition: "lgpu"
@@ -124,8 +124,8 @@ leanstral:
       - "--gpu-memory-utilization 0.95"
       - "--trust-remote-code"
 
-leanstral-community:
-  fullname: "sahilchachra/Leanstral-1.5-119B-A6B-BF16"
+leanstral-1.5:
+  fullname: "mistralai/Leanstral-1.5-119B-A6B"
   slurm:
     partition: "lgpu"
     nodes: 2
