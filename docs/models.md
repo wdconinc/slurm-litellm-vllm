@@ -9,7 +9,9 @@ The following models are currently pre-configured and validated for the cluster.
 | `smollm-cpu-ray` | `HuggingFaceTB/SmolLM-135M-Instruct` | `skylake` | 0 | 2 | 16G | 01:00:00 |
 | `llama-70b` | `meta-llama/Llama-3.1-70B-Instruct` | `lgpu` | 2 | 32 | 128G | 04:00:00 |
 | `mistral-large` | `neuralmagic/Mistral-Large-Instruct-2407-FP8` | `lgpu` | 2 | 32 | 128G | 04:00:00 |
-| `leanstral` | `sahilchachra/Leanstral-1.5-119B-A6B-BF16` | `lgpu` | 2 | 32 | 256G | 04:00:00 |
+| `leanstral-2603` | `mistralai/Leanstral-2603` | `lgpu` | 2 | 32 | 256G | 04:00:00 |
+| `leanstral-1.5` | `mistralai/Leanstral-1.5-119B-A6B` | `lgpu` | 2 | 32 | 256G | 04:00:00 |
+| `llama-8b` | `meta-llama/Llama-3.1-8B-Instruct` | `agpu` | 2 | 24 | 128G | 04:00:00 |
 
 ## Detailed Configurations
 
@@ -60,14 +62,31 @@ The following models are currently pre-configured and validated for the cluster.
   - `--max-model-len 32768`
   - `--gpu-memory-utilization 0.95`
 
-### `leanstral`
-- **HuggingFace Path:** `sahilchachra/Leanstral-1.5-119B-A6B-BF16`
+### `leanstral-2603`
+- **HuggingFace Path:** `mistralai/Leanstral-2603`
 - **Hardware Request:** 2 nodes, 2 GPUs, 32 CPUs, 256G RAM on `lgpu`
 - **vLLM Arguments:**
-  - `--tensor-parallel-size 2`
-  - `--pipeline-parallel-size 2`
+  - `--tensor-parallel-size 4`
   - `--quantization fp8`
   - `--max-model-len 32768`
   - `--gpu-memory-utilization 0.95`
   - `--trust-remote-code`
+
+### `leanstral-1.5`
+- **HuggingFace Path:** `mistralai/Leanstral-1.5-119B-A6B`
+- **Hardware Request:** 2 nodes, 2 GPUs, 32 CPUs, 256G RAM on `lgpu`
+- **vLLM Arguments:**
+  - `--tensor-parallel-size 4`
+  - `--quantization fp8`
+  - `--max-model-len 32768`
+  - `--gpu-memory-utilization 0.95`
+  - `--trust-remote-code`
+
+### `llama-8b`
+- **HuggingFace Path:** `meta-llama/Llama-3.1-8B-Instruct`
+- **Hardware Request:** 1 nodes, 2 GPUs, 24 CPUs, 128G RAM on `agpu`
+- **vLLM Arguments:**
+  - `--tensor-parallel-size 2`
+  - `--max-model-len 32768`
+  - `--gpu-memory-utilization 0.90`
 

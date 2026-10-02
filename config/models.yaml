@@ -142,3 +142,18 @@ leanstral-1.5:
       - "--max-model-len 32768"
       - "--gpu-memory-utilization 0.95"
       - "--trust-remote-code"
+
+llama-8b:
+  fullname: "meta-llama/Llama-3.1-8B-Instruct"
+  slurm:
+    partition: "agpu"
+    nodes: 1
+    gpus_per_node: 2
+    cpus_per_task: 24
+    mem: "128G"
+    time: "04:00:00"
+  vllm:
+    args:
+      - "--tensor-parallel-size 2"
+      - "--max-model-len 32768"
+      - "--gpu-memory-utilization 0.90"
