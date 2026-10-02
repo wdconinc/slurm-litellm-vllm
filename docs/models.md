@@ -12,6 +12,7 @@ The following models are currently pre-configured and validated for the cluster.
 | `leanstral-2603` | `mistralai/Leanstral-2603` | `lgpu` | 2 | 32 | 256G | 04:00:00 |
 | `leanstral-1.5` | `mistralai/Leanstral-1.5-119B-A6B` | `lgpu` | 2 | 32 | 256G | 04:00:00 |
 | `llama-8b` | `meta-llama/Llama-3.1-8B-Instruct` | `agpu` | 2 | 24 | 128G | 04:00:00 |
+| `qwen-14b` | `Qwen/Qwen2.5-14B-Instruct` | `agpu` | 2 | 24 | 128G | 04:00:00 |
 
 ## Detailed Configurations
 
@@ -89,4 +90,13 @@ The following models are currently pre-configured and validated for the cluster.
   - `--tensor-parallel-size 2`
   - `--max-model-len 32768`
   - `--gpu-memory-utilization 0.90`
+
+### `qwen-14b`
+- **HuggingFace Path:** `Qwen/Qwen2.5-14B-Instruct`
+- **Hardware Request:** 1 nodes, 2 GPUs, 24 CPUs, 128G RAM on `agpu`
+- **vLLM Arguments:**
+  - `--tensor-parallel-size 2`
+  - `--max-model-len 32768`
+  - `--gpu-memory-utilization 0.90`
+  - `--trust-remote-code`
 

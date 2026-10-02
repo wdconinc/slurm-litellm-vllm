@@ -157,3 +157,19 @@ llama-8b:
       - "--tensor-parallel-size 2"
       - "--max-model-len 32768"
       - "--gpu-memory-utilization 0.90"
+
+qwen-14b:
+  fullname: "Qwen/Qwen2.5-14B-Instruct"
+  slurm:
+    partition: "agpu"
+    nodes: 1
+    gpus_per_node: 2
+    cpus_per_task: 24
+    mem: "128G"
+    time: "04:00:00"
+  vllm:
+    args:
+      - "--tensor-parallel-size 2"
+      - "--max-model-len 32768"
+      - "--gpu-memory-utilization 0.90"
+      - "--trust-remote-code"
