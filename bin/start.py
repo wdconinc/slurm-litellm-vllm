@@ -348,7 +348,7 @@ def watch_status(job_id: Optional[str], compute_ip: str) -> None:
     signal.signal(signal.SIGCONT, handle_sigcont)
 
     print(
-        "\n[Monitor] Watching active session (Ctrl+C to stop monitor without killing job)..."
+        "\n[Monitor] Watching active session (Ctrl+C to stop monitor without killing job, 'r'+Enter to reset watchdog)..."
     )
 
     try:
@@ -406,7 +406,23 @@ def watch_status(job_id: Optional[str], compute_ip: str) -> None:
                 print("\n[Monitor] Watchdog limit reached on compute node. Exiting.")
                 break
 
-            time.sleep(60)
+            import select
+            if is_fg and sys.stdin.isatty():
+                r_fds, _, _ = select.select([sys.stdin], [], [], 60)
+                if r_fds:
+                    line = sys.stdin.readline().strip()
+                    if line.lower() == 'r':
+                        reset_flag_path = os.path.join(
+                            os.path.dirname(__file__), "..", "run", "watchdog_reset.flag"
+                        )
+                        try:
+                            with open(reset_flag_path, "w") as f:
+                                f.write("1")
+                            print("\n[Monitor] Sent reset signal to Watchdog.")
+                        except Exception as e:
+                            print(f"\n[Monitor] Failed to send reset signal: {e}")
+            else:
+                time.sleep(60)
     except KeyboardInterrupt:
         print("\n[Monitor] Stopped monitoring. Job is still running on cluster.")
 

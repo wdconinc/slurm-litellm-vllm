@@ -402,12 +402,21 @@ def main() -> None:
 
     while vllm_proc.poll() is None and proxy_proc.poll() is None:
         time.sleep(60)
+        reset_flag_path = os.path.join(RUN_DIR, "watchdog_reset.flag")
+        if os.path.exists(reset_flag_path):
+            log_msg("[Watchdog] Reset flag detected. Resetting timer.")
+            idle_mins = 0
+            try:
+                os.remove(reset_flag_path)
+            except OSError:
+                pass
+
         try:
             r = requests.get(f"http://{vllm_host}:{vllm_port}/metrics", timeout=5)
             metrics = r.text
             active_reqs = 0
             for line in metrics.splitlines():
-                if line.startswith("vllm:num_requests_") and not line.startswith("#"):
+                if (line.startswith("vllm:num_requests_") or line.startswith("vllm_num_requests_")) and not line.startswith("#"):
                     active_reqs += float(line.split()[1])
 
             if active_reqs == 0:
