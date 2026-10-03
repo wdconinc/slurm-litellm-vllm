@@ -1,4 +1,5 @@
 import os
+
 import pytest
 from openai import OpenAI
 
@@ -53,9 +54,9 @@ def test_system_prompt_adherence(client: OpenAI, model_name: str) -> None:
         max_tokens=20,
     )
     content = response.choices[0].message.content.lower()
-    assert (
-        "bonjour" in content or "salut" in content
-    ), f"Model did not translate to French. Got: {content}"
+    assert "bonjour" in content or "salut" in content, (
+        f"Model did not translate to French. Got: {content}"
+    )
 
 
 def test_tool_calling(client: OpenAI, model_name: str) -> None:
@@ -93,19 +94,21 @@ def test_tool_calling(client: OpenAI, model_name: str) -> None:
 
     message = response.choices[0].message
     # Check if the model decided to call a tool
-    assert (
-        message.tool_calls is not None
-    ), "Model did not generate a tool call. It may not support function calling or ignoring the tool schema."
+    assert message.tool_calls is not None, (
+        "Model did not generate a tool call. It may not support function calling or ignoring the tool schema."
+    )
     assert len(message.tool_calls) > 0, "Model generated empty tool calls list."
 
     tool_call = message.tool_calls[0]
-    assert (
-        tool_call.function.name == "get_current_weather"
-    ), f"Expected get_current_weather, got {tool_call.function.name}"
+    assert tool_call.function.name == "get_current_weather", (
+        f"Expected get_current_weather, got {tool_call.function.name}"
+    )
     assert (
         "Boston" in tool_call.function.arguments
         or "boston" in tool_call.function.arguments.lower()
-    ), f"Model didn't extract 'Boston' correctly. Got arguments: {tool_call.function.arguments}"
+    ), (
+        f"Model didn't extract 'Boston' correctly. Got arguments: {tool_call.function.arguments}"
+    )
 
 
 def test_multi_turn_conversation(client: OpenAI, model_name: str) -> None:
@@ -121,6 +124,6 @@ def test_multi_turn_conversation(client: OpenAI, model_name: str) -> None:
     )
 
     content = response.choices[0].message.content.lower()
-    assert (
-        "emerald" in content or "green" in content
-    ), f"Model failed to recall context. Got: {content}"
+    assert "emerald" in content or "green" in content, (
+        f"Model failed to recall context. Got: {content}"
+    )

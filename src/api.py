@@ -1,7 +1,8 @@
 import os
 import subprocess
-from typing import Optional, Any
-from bin.start import submit_job, monitor_job
+from typing import Any, Optional
+
+from bin.start import monitor_job, submit_job
 
 
 class SlurmLLMFleet:

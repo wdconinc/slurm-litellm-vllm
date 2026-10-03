@@ -79,14 +79,11 @@ If you are writing your own Python scripts, agents, or evaluation pipelines, use
 ```python
 import openai
 
-client = openai.OpenAI(
-    base_url="http://localhost:4000/v1",
-    api_key="sk-hpc-secret-key"
-)
+client = openai.OpenAI(base_url="http://localhost:4000/v1", api_key="sk-hpc-secret-key")
 
 response = client.chat.completions.create(
     model="my-local-model",
-    messages=[{"role": "user", "content": "How do I reverse a string in Python?"}]
+    messages=[{"role": "user", "content": "How do I reverse a string in Python?"}],
 )
 
 print(response.choices[0].message.content)
@@ -105,7 +102,7 @@ llm = ChatOpenAI(
     model="my-local-model",
     openai_api_base="http://localhost:4000/v1",
     openai_api_key="sk-hpc-secret-key",
-    max_tokens=512
+    max_tokens=512,
 )
 
 response = llm.invoke("Explain HPC scheduling.")

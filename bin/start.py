@@ -1,10 +1,8 @@
 import os
+import subprocess
 import sys
 import time
-import subprocess
-
-
-from typing import Optional, Any
+from typing import Any, Optional
 
 
 def deep_merge(dict1: dict, dict2: dict) -> dict:
@@ -18,9 +16,9 @@ def deep_merge(dict1: dict, dict2: dict) -> dict:
 
 def run_preflight_checks(model_key: str, config: dict) -> None:
     print("[Preflight] Running validation checks...")
-    import urllib.request
-    import urllib.error
     import shutil
+    import urllib.error
+    import urllib.request
 
     # 1. Check HuggingFace Repository
     hf_repo = config.get("fullname")
@@ -323,8 +321,9 @@ def print_success(endpoint_file: str) -> str:
 
 
 def watch_status(job_id: Optional[str], compute_ip: str) -> None:
-    import yaml
     import signal
+
+    import yaml
 
     config_path = os.path.join(os.path.dirname(__file__), "..", "config", "models.yaml")
     try:
@@ -432,13 +431,17 @@ def watch_status(job_id: Optional[str], compute_ip: str) -> None:
                 break
 
             import select
+
             if is_fg and sys.stdin.isatty():
                 r_fds, _, _ = select.select([sys.stdin], [], [], 60)
                 if r_fds:
                     line = sys.stdin.readline().strip()
-                    if line.lower() == 'r':
+                    if line.lower() == "r":
                         reset_flag_path = os.path.join(
-                            os.path.dirname(__file__), "..", "run", "watchdog_reset.flag"
+                            os.path.dirname(__file__),
+                            "..",
+                            "run",
+                            "watchdog_reset.flag",
                         )
                         try:
                             with open(reset_flag_path, "w") as f:
