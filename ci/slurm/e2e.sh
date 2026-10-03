@@ -60,7 +60,8 @@ source run/endpoint.env
 
 step "A chat completion through the LiteLLM proxy"
 for _ in $(seq 1 30); do  # LiteLLM can lag a few seconds behind the endpoint file
-    if REPLY=$(curl -sf --max-time 30 "$OPENAI_BASE_URL/chat/completions" \
+    # CPU inference is slow, and the first request also warms the model up: allow minutes, not seconds.
+    if REPLY=$(curl -sf --max-time 300 "$OPENAI_BASE_URL/chat/completions" \
         -H "Authorization: Bearer $OPENAI_API_KEY" -H "Content-Type: application/json" \
         -d '{"model":"my-local-model","messages":[{"role":"user","content":"Say hello."}],"max_tokens":8}'); then
         break
@@ -85,11 +86,13 @@ cat "$LOG"
 
 step "Assertions"
 grep -q "\[Orchestrator\] Endpoint published" "$LOG" || fail "endpoint not published"
-grep -q "\[Metrics\] reqs=+1 " "$LOG" || fail "the request was not counted in a [Metrics] minute"
+# At least one: LiteLLM retries an upstream call that outlasts its timeout, so a slow first CPU
+# completion can reach vLLM twice for the test's single request (seen in CI: reqs=+2).
+grep -qE "\[Metrics\] reqs=\+[1-9][0-9]* " "$LOG" || fail "the request was not counted in a [Metrics] minute"
 grep -q "\[Watchdog\] Max idle time (2 mins) reached" "$LOG" || fail "the watchdog did not end the job on idle"
 SUMMARY=$(grep "\[Summary\]" "$LOG" || true)
 [ -n "$SUMMARY" ] || fail "no [Summary] line"
-echo "$SUMMARY" | grep -q "requests=1 " || fail "summary does not count the one request: $SUMMARY"
+echo "$SUMMARY" | grep -qE "requests=[1-9][0-9]* " || fail "summary counts no requests: $SUMMARY"
 echo "$SUMMARY" | grep -q "busy_minutes=1/" || fail "summary does not show one busy minute: $SUMMARY"
 grep -q "\[Orchestrator\] Shutting down" "$LOG" || fail "no clean shutdown"
 
