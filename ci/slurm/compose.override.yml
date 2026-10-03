@@ -1,0 +1,6 @@
+# Layered on slurm-docker-cluster's docker-compose.yml in CI. Docker gives a container a 64 MiB
+# /dev/shm; real compute nodes have gigabytes, and Apptainer shares the node's /dev/shm with the
+# job's container. vLLM's engine needs more than 64 MiB ("Insufficient space in /dev/shm").
+services:
+  cpu-worker:
+    shm_size: 2gb

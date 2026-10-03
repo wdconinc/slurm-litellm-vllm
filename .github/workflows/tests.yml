@@ -51,7 +51,8 @@ jobs:
         working-directory: ${{ runner.temp }}/sdc
         run: |
           printf 'COMPOSE_PROJECT_NAME=slurm\nSLURM_VERSION=%s\nCPU_WORKER_COUNT=1\n' "$SLURM_VERSION" > .env
-          docker compose up -d --no-build mysql slurmdbd slurmctld cpu-worker
+          docker compose -f docker-compose.yml -f "$GITHUB_WORKSPACE/ci/slurm/compose.override.yml" \
+            up -d --no-build mysql slurmdbd slurmctld cpu-worker
           timeout 180 bash -c 'until docker compose ps slurmctld | grep -q healthy; do sleep 3; done'
           timeout 180 bash -c 'until docker exec slurmctld sinfo -h -o "%t" | grep -q idle; do sleep 3; done'
           docker exec slurmctld sinfo
@@ -68,7 +69,7 @@ jobs:
           for node in $(docker compose ps -q cpu-worker); do
             docker cp "$RUNNER_TEMP/apptainer.rpm" "$node:/tmp/apptainer.rpm"
             docker exec "$node" dnf -y -q install /tmp/apptainer.rpm
-            docker exec "$node" bash -c 'apptainer --version && singularity --version'
+            docker exec "$node" bash -c 'apptainer --version && singularity --version && df -h /dev/shm'
           done
 
       - name: Stage the repository and uv on the shared /data
