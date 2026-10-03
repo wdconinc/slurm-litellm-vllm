@@ -5,8 +5,9 @@
 #   args, SmolLM-135M on CPU) → LiteLLM proxy → run/endpoint.env → a chat completion through the
 #   proxy → idle watchdog → [Summary]
 #
-# Nothing is faked. The one substitution: the nodes have no Singularity, so ci/slurm/bin/singularity
-# runs the same image with Docker, on the node's network (see that script).
+# Nothing is faked or substituted: the compute nodes run the latest Apptainer release (which also
+# provides `singularity`), installed by the workflow, so the job pulls and runs smollm-cpu's
+# docker:// image exactly as on the real cluster.
 #
 # Runs inside the slurmctld container, from /data/repo (the shared job directory, so the compute
 # nodes see the same files). Expects uv at /data/bin/uv. See .github/workflows/tests.yml.
@@ -20,10 +21,8 @@ cd "$REPO"
 step() { echo; echo "=== $* ($(date +%T))"; }
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
-step "Test profile and the Docker-backed singularity"
+step "Test profile"
 cat ci/slurm/models-ci.yaml >> config/models.yaml
-chmod +x ci/slurm/bin/singularity
-export PATH="$REPO/ci/slurm/bin:$PATH"  # exported to the job by sbatch (--export=ALL)
 
 step "Python environment (shared with the compute nodes through /data)"
 /data/bin/uv venv -q --python /usr/bin/python3 .venv
@@ -48,7 +47,7 @@ LIMIT=$(scontrol show job "$JOB" | sed -n 's/.*TimeLimit=\([^ ]*\).*/\1/p')
 echo "TimeLimit=$LIMIT"
 [ "$LIMIT" = "00:15:00" ] || fail "expected TimeLimit=00:15:00, got $LIMIT"
 
-step "Wait for the endpoint (vLLM downloads the model and starts on CPU)"
+step "Wait for the endpoint (Apptainer converts the image, vLLM downloads the model and starts)"
 for _ in $(seq 1 240); do
     [ -f run/endpoint.env ] && break
     squeue -h -j "$JOB" | grep -q . || { cat "$LOG" 2>/dev/null; fail "job $JOB ended before publishing"; }
