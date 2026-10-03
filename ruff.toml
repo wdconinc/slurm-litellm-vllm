@@ -1,0 +1,6 @@
+# Ruff configuration, shared by CI (.github/workflows/tests.yml) and pre-commit. The rules are
+# pinned here so that the result does not change with the ruff version's defaults.
+#   E4, E7, E9, F  pycodestyle errors and pyflakes (ruff's classic default set)
+#   I              import sorting
+[lint]
+select = ["E4", "E7", "E9", "F", "I"]

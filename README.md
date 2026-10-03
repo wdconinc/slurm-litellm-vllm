@@ -72,12 +72,11 @@ import openai
 
 client = openai.OpenAI(
     base_url="http://localhost:4000/v1",
-    api_key="sk-hpc-secret-key" # Must match LITELLM_MASTER_KEY in litellm.sh
+    api_key="sk-hpc-secret-key",  # Must match LITELLM_MASTER_KEY in litellm.sh
 )
 
 response = client.chat.completions.create(
-    model="my-local-model",
-    messages=[{"role": "user", "content": "Hello!"}]
+    model="my-local-model", messages=[{"role": "user", "content": "Hello!"}]
 )
 print(response.choices[0].message.content)
 ```

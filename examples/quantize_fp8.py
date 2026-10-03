@@ -7,9 +7,13 @@ Prerequisites:
 """
 
 import argparse
-from llmcompressor.transformers import SparseAutoModelForCausalLM, SparseAutoTokenizer
-from llmcompressor.transformers import oneshot
+
 from llmcompressor.modifiers.quantization import QuantizationModifier
+from llmcompressor.transformers import (
+    SparseAutoModelForCausalLM,
+    SparseAutoTokenizer,
+    oneshot,
+)
 
 
 def main():

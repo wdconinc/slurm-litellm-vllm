@@ -1,15 +1,15 @@
-from typing import Any, Dict
+import atexit
+import datetime
 import os
-import sys
-import time
+import signal
 import socket
 import subprocess
-import signal
-import yaml
-import requests
-import atexit
+import sys
+import time
+from typing import Any, Dict
 
-import datetime
+import requests
+import yaml
 
 import job_metrics
 
@@ -240,8 +240,8 @@ def main() -> None:
             worker_cmd = (
                 [
                     "srun",
-                    f"--nodes={num_nodes-1}",
-                    f"--ntasks={num_nodes-1}",
+                    f"--nodes={num_nodes - 1}",
+                    f"--ntasks={num_nodes - 1}",
                     "--exclude",
                     compute_node,
                     "singularity",

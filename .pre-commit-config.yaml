@@ -1,7 +1,9 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.5
+    rev: v0.16.10  # keep in step with RUFF_VERSION in .github/workflows/tests.yml
     hooks:
-      - id: ruff
+      - id: ruff-check
         args: [ --fix ]
       - id: ruff-format
+        # Also the Python code blocks in Markdown, which `ruff format` in CI checks too.
+        types_or: [ python, pyi, jupyter, markdown ]

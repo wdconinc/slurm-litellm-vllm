@@ -1,6 +1,7 @@
 import os
 import subprocess
 import time
+
 import pytest
 from openai import OpenAI
 
@@ -80,9 +81,9 @@ def test_ray_multi_node_cluster() -> None:
             temperature=0.1,
         )
         content = response.choices[0].message.content.lower()
-        assert (
-            "ray" in content or len(content) > 0
-        ), "Model did not return a valid response."
+        assert "ray" in content or len(content) > 0, (
+            "Model did not return a valid response."
+        )
         print("✅ Multi-Node Ray Cluster successfully generated text!")
     finally:
         # Cleanup job so we don't hog 2 nodes
