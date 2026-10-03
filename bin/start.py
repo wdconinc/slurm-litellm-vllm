@@ -126,7 +126,29 @@ def run_preflight_checks(model_key: str, config: dict) -> None:
     print("[Preflight] Validation complete.\n")
 
 
-def submit_job(model_key: str) -> Optional[str]:
+def pop_time_arg(argv: list) -> tuple:
+    """Split `--time VALUE` / `--time=VALUE` out of `argv`; return (time or None, remaining args).
+
+    The value is passed to sbatch as-is (any format Slurm accepts, e.g. 08:00:00 or 1-00:00:00);
+    Slurm itself rejects a malformed value or one beyond the partition's limit."""
+    rest, time_limit, i = [], None, 0
+    while i < len(argv):
+        arg = argv[i]
+        if arg == "--time":
+            if i + 1 >= len(argv):
+                print("Error: --time needs a value, e.g. --time 08:00:00")
+                sys.exit(1)
+            time_limit, i = argv[i + 1], i + 2
+            continue
+        if arg.startswith("--time="):
+            time_limit = arg.split("=", 1)[1]
+        else:
+            rest.append(arg)
+        i += 1
+    return time_limit, rest
+
+
+def submit_job(model_key: str, time_limit: Optional[str] = None) -> Optional[str]:
     import yaml
 
     config_path = os.path.join(os.path.dirname(__file__), "..", "config", "models.yaml")
@@ -153,6 +175,9 @@ def submit_job(model_key: str) -> Optional[str]:
     deep_merge(config, model_config)
 
     slurm_overrides = config.get("slurm", {})
+    if time_limit:
+        # --time on the command line wins over the profile's slurm.time (default 04:00:00).
+        slurm_overrides["time"] = time_limit
 
     # Run Preflight Validation
     run_preflight_checks(model_key, config)
@@ -429,12 +454,17 @@ def watch_status(job_id: Optional[str], compute_ip: str) -> None:
 
 def main() -> None:
     if len(sys.argv) > 1 and sys.argv[1] in ("-h", "--help"):
-        print("Usage: ./bin/start.sh [MODEL_KEY]")
+        print("Usage: ./bin/start.sh [MODEL_KEY] [--time TIME]")
         print("\nDescription:")
         print(
             "  Submits a vLLM backend to the Slurm queue, monitors its initialization,"
         )
         print("  and displays the local proxy connection variables once healthy.")
+        print("\nOptions:")
+        print(
+            "  --time TIME   Slurm time limit for the job (e.g. 08:00:00 or 1-00:00:00),"
+        )
+        print("                overriding the profile's slurm.time in models.yaml.")
         print("\nAvailable Models (configured in config/models.yaml):")
 
         import yaml
@@ -457,9 +487,12 @@ def main() -> None:
         print("\nDefault MODEL_KEY: mistral-large")
         sys.exit(0)
 
-    model_key = sys.argv[1] if len(sys.argv) > 1 else "mistral-large"
+    time_limit, args = pop_time_arg(sys.argv[1:])
+    model_key = args[0] if args else "mistral-large"
     print(f"Submitting vLLM Slurm job for model: {model_key}...")
-    job_id = submit_job(model_key)
+    if time_limit:
+        print(f"Requested time limit: {time_limit}")
+    job_id = submit_job(model_key, time_limit)
     endpoint_file = monitor_job(job_id)
     compute_ip = print_success(endpoint_file)
     watch_status(job_id, compute_ip)
