@@ -93,7 +93,8 @@ grep -q "\[Watchdog\] Max idle time (2 mins) reached" "$LOG" || fail "the watchd
 SUMMARY=$(grep "\[Summary\]" "$LOG" || true)
 [ -n "$SUMMARY" ] || fail "no [Summary] line"
 echo "$SUMMARY" | grep -qE "requests=[1-9][0-9]* " || fail "summary counts no requests: $SUMMARY"
-echo "$SUMMARY" | grep -q "busy_minutes=1/" || fail "summary does not show one busy minute: $SUMMARY"
+# One or more: a retried request can land in the minute after the original.
+echo "$SUMMARY" | grep -qE "busy_minutes=[1-9][0-9]*/" || fail "summary shows no busy minute: $SUMMARY"
 grep -q "\[Orchestrator\] Shutting down" "$LOG" || fail "no clean shutdown"
 
 echo
