@@ -106,13 +106,19 @@ def main() -> None:
     config = get_model_config(model_key)
 
     # Environment Setup
+    # Caches live under vllm.cache_root, by default the bound directory (vllm.sing_bind), so they
+    # are writable inside the read-only container image wherever the cluster's storage is mounted.
+    vllm_cfg = config.get("vllm", {})
+    cache_root = vllm_cfg.get("cache_root") or vllm_cfg.get(
+        "sing_bind", "/project/6041615"
+    )
     os.environ["SINGULARITYENV_HF_XET_HIGH_PERFORMANCE"] = "1"
-    os.environ["SINGULARITYENV_HF_HOME"] = "/project/6041615/huggingface_cache"
-    os.environ["SINGULARITYENV_TRITON_CACHE_DIR"] = "/project/6041615/triton_cache"
-    os.environ["SINGULARITYENV_VLLM_CACHE_ROOT"] = "/project/6041615/vllm_cache"
+    os.environ["SINGULARITYENV_HF_HOME"] = f"{cache_root}/huggingface_cache"
+    os.environ["SINGULARITYENV_TRITON_CACHE_DIR"] = f"{cache_root}/triton_cache"
+    os.environ["SINGULARITYENV_VLLM_CACHE_ROOT"] = f"{cache_root}/vllm_cache"
 
-    os.environ["HF_HOME"] = "/project/6041615/huggingface_cache"
-    os.environ["TIKTOKEN_CACHE_DIR"] = "/project/6041615/tiktoken_cache"
+    os.environ["HF_HOME"] = f"{cache_root}/huggingface_cache"
+    os.environ["TIKTOKEN_CACHE_DIR"] = f"{cache_root}/tiktoken_cache"
 
     internal_ip = get_internal_ip()
     compute_node = socket.gethostname()
@@ -435,7 +441,15 @@ def watch(
     """The idle watchdog: sample vLLM's /metrics every minute, log the minute's activity, and return
     once max_idle_mins consecutive minutes passed with none, or when vLLM or the proxy exits."""
     idle_mins = 0
-    prev_sample = None
+    # A baseline taken now, as the endpoint goes live: without it the first minute's sample has
+    # nothing to compare against, and a request answered within that minute is never counted.
+    try:
+        prev_sample = job_metrics.parse_metrics(
+            requests.get(metrics_url, timeout=5).text
+        )
+    except Exception as e:
+        log_msg(f"[Watchdog] No baseline metrics ({e}); first minute not measured.")
+        prev_sample = None
     while vllm_proc.poll() is None and proxy_proc.poll() is None:
         time.sleep(60)
         reset_flag_path = os.path.join(RUN_DIR, "watchdog_reset.flag")

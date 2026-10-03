@@ -1,0 +1,91 @@
+name: tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: offline tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: pytest (offline tests only; the others need a live endpoint or a real cluster)
+        run: uvx --with requests --with pyyaml pytest -q tests/test_job_metrics.py tests/test_start_time.py
+      - name: shellcheck the CI scripts
+        run: shellcheck ci/slurm/e2e.sh
+
+  slurm-e2e:
+    name: end-to-end on a Slurm cluster (smollm-cpu)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # slurm-docker-cluster release 3.0.0 and its published image, pinned together.
+      SDC_REF: 3.0.0
+      SDC_IMAGE: giovtorres/slurm-docker-cluster:26.05.2-3.0.0
+      SLURM_VERSION: 26.05.2
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Fetch slurm-docker-cluster ${{ env.SDC_REF }}
+        run: git clone --depth 1 --branch "$SDC_REF" https://github.com/giovtorres/slurm-docker-cluster "$RUNNER_TEMP/sdc"
+
+      - name: Pull the cluster image
+        run: |
+          docker pull "$SDC_IMAGE"
+          docker tag "$SDC_IMAGE" "slurm-docker-cluster:$SLURM_VERSION"
+
+      - name: Start the cluster (one CPU node)
+        working-directory: ${{ runner.temp }}/sdc
+        run: |
+          printf 'COMPOSE_PROJECT_NAME=slurm\nSLURM_VERSION=%s\nCPU_WORKER_COUNT=1\n' "$SLURM_VERSION" > .env
+          docker compose -f docker-compose.yml -f "$GITHUB_WORKSPACE/ci/slurm/compose.override.yml" \
+            up -d --no-build mysql slurmdbd slurmctld cpu-worker
+          timeout 180 bash -c 'until docker compose ps slurmctld | grep -q healthy; do sleep 3; done'
+          timeout 180 bash -c 'until docker exec slurmctld sinfo -h -o "%t" | grep -q idle; do sleep 3; done'
+          docker exec slurmctld sinfo
+          docker exec slurmctld scontrol show node | grep -E 'NodeName|CPUTot|RealMemory'
+
+      - name: Install Apptainer (latest release) on the compute nodes
+        working-directory: ${{ runner.temp }}/sdc
+        run: |
+          # The EL8/EL9 build (Rocky 9 nodes); the node image already enables EPEL for its dependencies.
+          url=$(gh api repos/apptainer/apptainer/releases/latest \
+            --jq '.assets[] | select(.name | test("^apptainer-[0-9.]+-[0-9]+\\.x86_64\\.rpm$")) | .browser_download_url')
+          echo "Apptainer: $url"
+          curl -fsSL -o "$RUNNER_TEMP/apptainer.rpm" "$url"
+          for node in $(docker compose ps -q cpu-worker); do
+            docker cp "$RUNNER_TEMP/apptainer.rpm" "$node:/tmp/apptainer.rpm"
+            docker exec "$node" dnf -y -q install /tmp/apptainer.rpm
+            docker exec "$node" bash -c 'apptainer --version && singularity --version && df -h /dev/shm'
+          done
+
+      - name: Stage the repository and uv on the shared /data
+        run: |
+          docker exec slurmctld mkdir -p /data/bin
+          docker cp "$GITHUB_WORKSPACE/." slurmctld:/data/repo
+          docker cp "$(command -v uv)" slurmctld:/data/bin/uv
+
+      - name: End-to-end test
+        run: docker exec slurmctld bash /data/repo/ci/slurm/e2e.sh
+
+      - name: Diagnostics
+        if: failure()
+        working-directory: ${{ runner.temp }}/sdc
+        run: |
+          docker exec slurmctld bash -c 'tail -n 300 /data/repo/vllm_*.log; tail -n 50 /data/ci/start.log' || true
+          docker exec slurmctld bash -c 'squeue; sacct -a --format=JobID,State,ExitCode,Elapsed,NodeList' || true
+          docker ps -a
+          docker compose logs --tail 100 slurmctld cpu-worker || true
