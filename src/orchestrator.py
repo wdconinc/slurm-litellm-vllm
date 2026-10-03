@@ -435,7 +435,15 @@ def watch(
     """The idle watchdog: sample vLLM's /metrics every minute, log the minute's activity, and return
     once max_idle_mins consecutive minutes passed with none, or when vLLM or the proxy exits."""
     idle_mins = 0
-    prev_sample = None
+    # A baseline taken now, as the endpoint goes live: without it the first minute's sample has
+    # nothing to compare against, and a request answered within that minute is never counted.
+    try:
+        prev_sample = job_metrics.parse_metrics(
+            requests.get(metrics_url, timeout=5).text
+        )
+    except Exception as e:
+        log_msg(f"[Watchdog] No baseline metrics ({e}); first minute not measured.")
+        prev_sample = None
     while vllm_proc.poll() is None and proxy_proc.poll() is None:
         time.sleep(60)
         reset_flag_path = os.path.join(RUN_DIR, "watchdog_reset.flag")

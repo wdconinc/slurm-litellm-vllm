@@ -1,0 +1,25 @@
+
+# --- appended to config/models.yaml by CI (ci/slurm/models-ci.yaml); never part of a deployment ---
+# smollm-cpu as-is (model, image, vLLM args), with Slurm resources that fit the slurm-docker-cluster
+# test node (its `cpu` partition, the runner's CPUs) and storage on the cluster's shared /data instead
+# of /project. A two-minute idle limit makes the job end on its own shortly after the test's request.
+smollm-cpu-ci:
+  fullname: "HuggingFaceTB/SmolLM-135M-Instruct"
+  slurm:
+    partition: "cpu"
+    nodes: 1
+    gpus_per_node: 0
+    cpus_per_task: 2
+    mem: "4G"
+    time: "00:30:00"
+  vllm:
+    image: "docker://vllm/vllm-openai-cpu:latest-x86_64"
+    download_dir: "/data/ci/models"
+    singularity_cache: "/data/ci/singularity_cache"
+    sing_bind: "/data"
+    args:
+      - "--gpu-memory-utilization 0.1"
+      - "--max-model-len 2048"
+      - "--enforce-eager"
+  watchdog:
+    max_idle_mins: 2

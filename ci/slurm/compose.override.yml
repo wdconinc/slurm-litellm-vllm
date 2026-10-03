@@ -1,0 +1,8 @@
+# Layered on slurm-docker-cluster's docker-compose.yml in CI: let the compute nodes start containers
+# on the CI host (ci/slurm/bin/singularity runs the job's vLLM image with Docker). The static Docker
+# client is downloaded by the workflow into ci/slurm/docker-cli/.
+services:
+  cpu-worker:
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${CI_DOCKER_CLI:?set CI_DOCKER_CLI to the static docker client}:/usr/local/bin/docker:ro

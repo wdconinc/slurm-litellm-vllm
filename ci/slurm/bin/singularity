@@ -1,0 +1,60 @@
+#!/bin/bash
+# CI stand-in for `singularity`, which the slurm-docker-cluster nodes do not have: run the same
+# container image with Docker instead, through the CI host's Docker socket (mounted into the
+# compute nodes by ci/slurm/compose.override.yml).
+#
+#   singularity exec [--cleanenv] [--nv] [--bind SRC[:DST]]... IMAGE CMD [ARGS...]
+#   → docker run --rm --network container:<this node> --volumes-from <this node> IMAGE CMD [ARGS...]
+#
+# Sharing the node's network namespace keeps Singularity's behaviour that matters here: a server the
+# container binds to 127.0.0.1 is reachable from the job on the node. --volumes-from gives it the
+# node's /data (the shared job directory, where the CI profile puts its model download dir).
+# Like `singularity --cleanenv`, only SINGULARITYENV_/APPTAINERENV_ variables reach the container.
+set -euo pipefail
+
+[ "${1:-}" = "exec" ] || { echo "ci singularity: only 'exec' is supported, got: $*" >&2; exit 2; }
+shift
+binds=()
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --cleanenv | --nv) shift ;;
+        --bind | -B)
+            src="${2%%:*}"
+            dst="${2#*:}"
+            [ -e "$src" ] && binds+=(-v "$src:$dst")
+            shift 2
+            ;;
+        -*) echo "ci singularity: unsupported option $1" >&2; exit 2 ;;
+        *) break ;;
+    esac
+done
+image="${1:?missing image}"
+shift
+[ $# -gt 0 ] || { echo "ci singularity: missing command" >&2; exit 2; }
+image="${image#docker://}"
+
+# This node's container, found by its IP: the docker daemon knows it by id, not by the Slurm hostname.
+my_ip="$(hostname -i | awk '{print $1}')"
+self=""
+for id in $(docker ps -q); do
+    if docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' "$id" | grep -qw "$my_ip"; then
+        self="$id"
+        break
+    fi
+done
+[ -n "$self" ] || { echo "ci singularity: cannot find this node's container (ip $my_ip)" >&2; exit 2; }
+
+envs=()
+while IFS='=' read -r name value; do
+    case "$name" in
+        SINGULARITYENV_* | APPTAINERENV_*) envs+=(-e "${name#*ENV_}=$value") ;;
+    esac
+done < <(env)
+
+name="ci-singularity-${SLURM_JOB_ID:-x}-$$"
+echo "ci singularity: docker run $image $* (in the network of $self)" >&2
+exec docker run --rm --name "$name" \
+    --network "container:$self" --volumes-from "$self" \
+    --shm-size 2g \
+    ${binds[@]+"${binds[@]}"} ${envs[@]+"${envs[@]}"} \
+    --entrypoint "$1" "$image" "${@:2}"
