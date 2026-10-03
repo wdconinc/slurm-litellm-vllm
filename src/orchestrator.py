@@ -11,6 +11,8 @@ import atexit
 
 import datetime
 
+import job_metrics
+
 
 def log_msg(msg: str) -> None:
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -94,6 +96,8 @@ def get_model_config(model_key: str) -> Dict[str, Any]:
 
 
 def main() -> None:
+    # ~ the allocation start: this runs first thing in the batch script
+    job_start = time.time()
     if len(sys.argv) < 2:
         log_msg("Usage: python orchestrator.py <model_key>")
         sys.exit(1)
@@ -394,12 +398,44 @@ def main() -> None:
         f.write(f'export OPENAI_API_KEY="{master_key}"\n')
         f.write('export OPENAI_MODEL="my-local-model"\n')
     log_msg(f"[Orchestrator] Endpoint published to {ENDPOINT_FILE}")
+    ready_at = time.time()
 
     # Idle Watchdog
     max_idle_mins = int(config.get("watchdog", {}).get("max_idle_mins", 15))
-    idle_mins = 0
     watchdog_env_path = os.path.join(RUN_DIR, "watchdog.env")
 
+    # Activity is judged from vLLM's cumulative counters, not just the requests in flight at the
+    # sample instant: a request that starts and ends between two samples still moves the counters.
+    # Each minute's growth is logged, and a summary is written however the loop ends (idle timeout,
+    # a process exiting, or Slurm's SIGTERM at the time limit). See job_metrics.py.
+    stats = job_metrics.JobStats()
+    try:
+        watch(
+            vllm_proc,
+            proxy_proc,
+            f"http://{vllm_host}:{vllm_port}/metrics",
+            max_idle_mins,
+            watchdog_env_path,
+            stats,
+        )
+    finally:
+        log_msg(stats.summary(job_start, ready_at, time.time()))
+
+    log_msg("[Orchestrator] Shutting down.")
+
+
+def watch(
+    vllm_proc: subprocess.Popen,
+    proxy_proc: subprocess.Popen,
+    metrics_url: str,
+    max_idle_mins: int,
+    watchdog_env_path: str,
+    stats: "job_metrics.JobStats",
+) -> None:
+    """The idle watchdog: sample vLLM's /metrics every minute, log the minute's activity, and return
+    once max_idle_mins consecutive minutes passed with none, or when vLLM or the proxy exits."""
+    idle_mins = 0
+    prev_sample = None
     while vllm_proc.poll() is None and proxy_proc.poll() is None:
         time.sleep(60)
         reset_flag_path = os.path.join(RUN_DIR, "watchdog_reset.flag")
@@ -412,14 +448,16 @@ def main() -> None:
                 pass
 
         try:
-            r = requests.get(f"http://{vllm_host}:{vllm_port}/metrics", timeout=5)
-            metrics = r.text
-            active_reqs = 0
-            for line in metrics.splitlines():
-                if (line.startswith("vllm:num_requests_") or line.startswith("vllm_num_requests_")) and not line.startswith("#"):
-                    active_reqs += float(line.split()[1])
+            r = requests.get(metrics_url, timeout=5)
+            cur_sample = job_metrics.parse_metrics(r.text)
+            d = job_metrics.delta(prev_sample, cur_sample)
+            prev_sample = cur_sample
+            active_reqs = job_metrics.in_flight(cur_sample)
+            busy = job_metrics.is_busy(d, cur_sample)
+            stats.add_minute(d, busy)
+            log_msg(job_metrics.minute_line(d, cur_sample))
 
-            if active_reqs == 0:
+            if not busy:
                 idle_mins += 1
                 log_msg(f"[Watchdog] Server idle for {idle_mins} minute(s)...")
                 if idle_mins >= max_idle_mins:
@@ -429,7 +467,7 @@ def main() -> None:
                     break
             else:
                 if idle_mins > 0:
-                    log_msg("[Watchdog] New request received. Resetting timer.")
+                    log_msg("[Watchdog] Activity since last check. Resetting timer.")
                 idle_mins = 0
 
             with open(watchdog_env_path, "w") as f:
@@ -442,8 +480,6 @@ def main() -> None:
                     f.write(f"IDLE_MINS={idle_mins}\nACTIVE_REQS=-1\n")
             except Exception:
                 pass
-
-    log_msg("[Orchestrator] Shutting down.")
 
 
 if __name__ == "__main__":
