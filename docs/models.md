@@ -13,6 +13,7 @@ The following models are currently pre-configured and validated for the cluster.
 | `leanstral-1.5` | `mistralai/Leanstral-1.5-119B-A6B` | `lgpu` | 2 | 32 | 256G | 04:00:00 |
 | `llama-8b` | `meta-llama/Llama-3.1-8B-Instruct` | `agpu` | 2 | 24 | 128G | 04:00:00 |
 | `qwen-14b` | `Qwen/Qwen2.5-14B-Instruct` | `agpu` | 2 | 24 | 128G | 04:00:00 |
+| `qwen-32b` | `Qwen/Qwen2.5-32B-Instruct` | `agpu` | 2 | 24 | 128G | 04:00:00 |
 
 ## Detailed Configurations
 
@@ -67,6 +68,8 @@ The following models are currently pre-configured and validated for the cluster.
 - **HuggingFace Path:** `mistralai/Leanstral-2603`
 - **Hardware Request:** 2 nodes, 2 GPUs, 32 CPUs, 256G RAM on `lgpu`
 - **vLLM Arguments:**
+  - `--enable-auto-tool-choice`
+  - `--tool-call-parser mistral`
   - `--tensor-parallel-size 4`
   - `--quantization fp8`
   - `--max-model-len 32768`
@@ -77,6 +80,8 @@ The following models are currently pre-configured and validated for the cluster.
 - **HuggingFace Path:** `mistralai/Leanstral-1.5-119B-A6B`
 - **Hardware Request:** 2 nodes, 2 GPUs, 32 CPUs, 256G RAM on `lgpu`
 - **vLLM Arguments:**
+  - `--enable-auto-tool-choice`
+  - `--tool-call-parser mistral`
   - `--tensor-parallel-size 4`
   - `--quantization fp8`
   - `--max-model-len 32768`
@@ -96,6 +101,16 @@ The following models are currently pre-configured and validated for the cluster.
 - **Hardware Request:** 1 nodes, 2 GPUs, 24 CPUs, 128G RAM on `agpu`
 - **vLLM Arguments:**
   - `--tensor-parallel-size 2`
+  - `--max-model-len 32768`
+  - `--gpu-memory-utilization 0.90`
+  - `--trust-remote-code`
+
+### `qwen-32b`
+- **HuggingFace Path:** `Qwen/Qwen2.5-32B-Instruct`
+- **Hardware Request:** 2 nodes, 2 GPUs, 24 CPUs, 128G RAM on `agpu`
+- **vLLM Arguments:**
+  - `--tensor-parallel-size 2`
+  - `--pipeline-parallel-size 2`
   - `--max-model-len 32768`
   - `--gpu-memory-utilization 0.90`
   - `--trust-remote-code`

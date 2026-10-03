@@ -177,3 +177,22 @@ qwen-14b:
       - "--max-model-len 32768"
       - "--gpu-memory-utilization 0.90"
       - "--trust-remote-code"
+
+qwen-32b:
+  fullname: "Qwen/Qwen2.5-32B-Instruct"
+  slurm:
+    partition: "agpu"
+    nodes: 2
+    ntasks: 2
+    ntasks_per_node: 1
+    gpus_per_node: 2
+    cpus_per_task: 24
+    mem: "128G"
+    time: "04:00:00"
+  vllm:
+    args:
+      - "--tensor-parallel-size 2"
+      - "--pipeline-parallel-size 2"
+      - "--max-model-len 32768"
+      - "--gpu-memory-utilization 0.90"
+      - "--trust-remote-code"
