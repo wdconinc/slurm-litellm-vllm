@@ -177,6 +177,8 @@ qwen-14b:
       - "--max-model-len 32768"
       - "--gpu-memory-utilization 0.90"
       - "--trust-remote-code"
+      - "--enable-auto-tool-choice"
+      - "--tool-call-parser hermes"
 
 qwen-32b:
   fullname: "Qwen/Qwen2.5-32B-Instruct"
@@ -196,3 +198,5 @@ qwen-32b:
       - "--max-model-len 32768"
       - "--gpu-memory-utilization 0.90"
       - "--trust-remote-code"
+      - "--enable-auto-tool-choice"
+      - "--tool-call-parser hermes"

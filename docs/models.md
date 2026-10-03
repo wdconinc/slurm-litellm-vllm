@@ -104,6 +104,8 @@ The following models are currently pre-configured and validated for the cluster.
   - `--max-model-len 32768`
   - `--gpu-memory-utilization 0.90`
   - `--trust-remote-code`
+  - `--enable-auto-tool-choice`
+  - `--tool-call-parser hermes`
 
 ### `qwen-32b`
 - **HuggingFace Path:** `Qwen/Qwen2.5-32B-Instruct`
@@ -114,4 +116,6 @@ The following models are currently pre-configured and validated for the cluster.
   - `--max-model-len 32768`
   - `--gpu-memory-utilization 0.90`
   - `--trust-remote-code`
+  - `--enable-auto-tool-choice`
+  - `--tool-call-parser hermes`
 
