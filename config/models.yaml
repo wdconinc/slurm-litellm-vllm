@@ -118,6 +118,8 @@ leanstral-2603:
     time: "04:00:00"
   vllm:
     args:
+      - "--enable-auto-tool-choice"
+      - "--tool-call-parser mistral"
       - "--tensor-parallel-size 4"
       - "--quantization fp8"
       - "--max-model-len 32768"
@@ -137,6 +139,8 @@ leanstral-1.5:
     time: "04:00:00"
   vllm:
     args:
+      - "--enable-auto-tool-choice"
+      - "--tool-call-parser mistral"
       - "--tensor-parallel-size 4"
       - "--quantization fp8"
       - "--max-model-len 32768"
