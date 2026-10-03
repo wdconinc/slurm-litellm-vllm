@@ -17,7 +17,9 @@ with open(docs_path, "w") as f:
     f.write(
         "The following models are currently pre-configured and validated for the cluster.\n\n"
     )
-    f.write("| Key | Fullname | Context Window | Partition | GPUs | CPUs | RAM | Time |\n")
+    f.write(
+        "| Key | Fullname | Context Window | Partition | GPUs | CPUs | RAM | Time |\n"
+    )
     f.write("|---|---|---|---|---|---|---|---|\n")
 
     for key, model in models.items():
@@ -50,7 +52,7 @@ with open(docs_path, "w") as f:
         alias_str = f" (Aliases: `{', '.join(model_aliases)}`)" if model_aliases else ""
         f.write(f"### `{key}`{alias_str}\n")
         f.write(f"- **HuggingFace Path:** `{model.get('fullname', '')}`\n")
-        
+
         args = model.get("vllm", {}).get("args", [])
         context_window = "Unknown"
         for arg in args:
@@ -68,7 +70,7 @@ with open(docs_path, "w") as f:
                     context_window = val
                 break
         f.write(f"- **Context Window:** {context_window}\n")
-        
+
         slurm = model.get("slurm", {})
         f.write(
             f"- **Hardware Request:** {slurm.get('nodes', 1)} nodes, {slurm.get('gpus_per_node', 0)} GPUs, {slurm.get('cpus_per_task', 1)} CPUs, {slurm.get('mem', '')} RAM on `{slurm.get('partition', '')}`\n"
