@@ -9,8 +9,8 @@ The following models are currently pre-configured and validated for the cluster.
 | `smollm-cpu-ray` | `HuggingFaceTB/SmolLM-135M-Instruct` | 2K | `skylake` | 0 | 2 | 16G | 01:00:00 |
 | `llama-70b` | `meta-llama/Llama-3.1-70B-Instruct` | 32K | `lgpu` | 2 | 32 | 128G | 04:00:00 |
 | `mistral-large` | `neuralmagic/Mistral-Large-Instruct-2407-FP8` | 32K | `lgpu` | 2 | 32 | 128G | 04:00:00 |
-| `leanstral-2603` | `mistralai/Leanstral-2603` | 32K | `lgpu` | 2 | 32 | 256G | 04:00:00 |
-| `leanstral-1.5` | `mistralai/Leanstral-1.5-119B-A6B` | 32K | `lgpu` | 2 | 32 | 256G | 04:00:00 |
+| `leanstral-2603` | `mistralai/Leanstral-2603` | 64K | `lgpu` | 2 | 32 | 256G | 04:00:00 |
+| `leanstral-1.5` | `mistralai/Leanstral-1.5-119B-A6B` | 64K | `lgpu` | 2 | 32 | 256G | 04:00:00 |
 | `llama-8b` | `meta-llama/Llama-3.1-8B-Instruct` | 32K | `agpu` | 2 | 24 | 128G | 04:00:00 |
 | `qwen-14b` | `Qwen/Qwen2.5-14B-Instruct` | 128K | `agpu` | 2 | 24 | 128G | 04:00:00 |
 | `qwen-32b` | `Qwen/Qwen2.5-32B-Instruct` | 128K | `agpu` | 2 | 24 | 128G | 04:00:00 |
@@ -71,28 +71,28 @@ The following models are currently pre-configured and validated for the cluster.
 
 ### `leanstral-2603`
 - **HuggingFace Path:** `mistralai/Leanstral-2603`
-- **Context Window:** 32K
+- **Context Window:** 64K
 - **Hardware Request:** 2 nodes, 2 GPUs, 32 CPUs, 256G RAM on `lgpu`
 - **vLLM Arguments:**
   - `--enable-auto-tool-choice`
   - `--tool-call-parser mistral`
   - `--tensor-parallel-size 4`
   - `--quantization fp8`
-  - `--max-model-len 32768`
-  - `--gpu-memory-utilization 0.95`
+  - `--max-model-len 65536`
+  - `--gpu-memory-utilization 0.90`
   - `--trust-remote-code`
 
 ### `leanstral-1.5`
 - **HuggingFace Path:** `mistralai/Leanstral-1.5-119B-A6B`
-- **Context Window:** 32K
+- **Context Window:** 64K
 - **Hardware Request:** 2 nodes, 2 GPUs, 32 CPUs, 256G RAM on `lgpu`
 - **vLLM Arguments:**
   - `--enable-auto-tool-choice`
   - `--tool-call-parser mistral`
   - `--tensor-parallel-size 4`
   - `--quantization fp8`
-  - `--max-model-len 32768`
-  - `--gpu-memory-utilization 0.95`
+  - `--max-model-len 65536`
+  - `--gpu-memory-utilization 0.90`
   - `--trust-remote-code`
 
 ### `llama-8b`

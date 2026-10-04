@@ -122,8 +122,8 @@ leanstral-2603:
       - "--tool-call-parser mistral"
       - "--tensor-parallel-size 4"
       - "--quantization fp8"
-      - "--max-model-len 32768"
-      - "--gpu-memory-utilization 0.95"
+      - "--max-model-len 65536"
+      - "--gpu-memory-utilization 0.90"
       - "--trust-remote-code"
 
 leanstral-1.5:
@@ -143,8 +143,8 @@ leanstral-1.5:
       - "--tool-call-parser mistral"
       - "--tensor-parallel-size 4"
       - "--quantization fp8"
-      - "--max-model-len 32768"
-      - "--gpu-memory-utilization 0.95"
+      - "--max-model-len 65536"
+      - "--gpu-memory-utilization 0.90"
       - "--trust-remote-code"
 
 llama-8b:
