@@ -174,7 +174,7 @@ qwen-14b:
   vllm:
     args:
       - "--tensor-parallel-size 2"
-      - "--max-model-len 32768"
+      - "--max-model-len 131072"
       - "--gpu-memory-utilization 0.90"
       - "--trust-remote-code"
       - "--enable-auto-tool-choice"
@@ -195,7 +195,7 @@ qwen-32b:
     args:
       - "--tensor-parallel-size 2"
       - "--pipeline-parallel-size 2"
-      - "--max-model-len 32768"
+      - "--max-model-len 131072"
       - "--gpu-memory-utilization 0.90"
       - "--trust-remote-code"
       - "--enable-auto-tool-choice"
