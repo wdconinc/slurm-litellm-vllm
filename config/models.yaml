@@ -9,7 +9,7 @@ defaults:
   litellm:
     port: 4000
   watchdog:
-    max_idle_mins: 60
+    max_idle_mins: 15
 
 qwen:
   fullname: "Qwen/Qwen3-Coder-Next"
