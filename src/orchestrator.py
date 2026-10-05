@@ -286,6 +286,9 @@ def main() -> None:
     if not has_tp:
         base_vllm_cmd.extend(["--tensor-parallel-size", str(tp_size)])
 
+    if not any("uvicorn-log-level" in a for a in vllm_args):
+        base_vllm_cmd.extend(["--uvicorn-log-level", "debug"])
+
     vllm_cmd = base_vllm_cmd + vllm_args
 
     env = os.environ.copy()
