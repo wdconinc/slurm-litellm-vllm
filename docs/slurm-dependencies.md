@@ -55,3 +55,21 @@ The LLM job natively fulfills the requirement of shutting down last thanks to th
 2. When the last worker job finishes and exits, the LLM stops receiving requests.
 3. The watchdog timer (default: 15 minutes) begins counting down.
 4. Once the timer expires, the orchestrator cleanly shuts down vLLM and terminates the Slurm job to release the GPUs back to the cluster.
+
+## Sequential LLM Backend Job Arrays
+
+If your workload runs longer than the cluster partition's walltime limit (e.g., 4 or 12 hours), you can submit the LLM backend itself as a sequential job array using `--array`:
+
+```bash
+# Submit 5 sequential backend jobs with %1 concurrency
+./bin/start.sh mistral-large --array 1-5
+```
+
+Or directly via `sbatch`:
+```bash
+sbatch --array=1-5%1 bin/vllm.sh mistral-large
+```
+
+- **Walltime Rollover**: When the current task reaches its time limit, Slurm gracefully terminates it. The orchestrator cleans up the endpoint file, and Slurm immediately launches the next task in the array.
+- **Automatic Idle Cleanup**: If the watchdog detects inactivity (15 minutes idle), it automatically cancels all remaining pending tasks in the array (`scancel $SLURM_ARRAY_JOB_ID`), guaranteeing GPU allocations are not wasted.
+

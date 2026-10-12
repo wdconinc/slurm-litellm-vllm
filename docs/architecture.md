@@ -14,8 +14,8 @@ This daemon runs on the Slurm compute node and replaces complex shell-script log
 
 ### 2. The Login Node Submitter (`bin/start.py`)
 This script acts as the CLI entrypoint on the login node.
-- **Dynamic Resource Allocation**: Reads `config/models.yaml` and injects `sbatch` arguments dynamically (e.g., requesting `--partition=skylake` and `--gpus-per-node=0` for CPU models, bypassing the default `#SBATCH` headers).
-- **Progress Monitoring**: Uses `squeue` to fetch state data and provides a terminal progress UI while waiting for the compute node to initialize.
+- **Dynamic Resource Allocation**: Reads `config/models.yaml` and injects `sbatch` arguments dynamically (e.g., requesting `--partition=skylake` and `--gpus-per-node=0` for CPU models, bypassing the default `#SBATCH` headers), with support for command-line overrides like `--time` and `--array` (sequential job arrays).
+- **Progress Monitoring**: Uses `squeue` to fetch state data and provides a terminal progress UI while waiting for the compute node to initialize, seamlessly tracking transitions across sequential array tasks.
 
 ### 3. Programmatic API (`src/api.py`)
 Researchers can import `SlurmLLMFleet` into Python notebooks (like Jupyter) to orchestrate multi-node LLM backends without touching the terminal. 

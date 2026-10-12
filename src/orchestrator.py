@@ -33,6 +33,12 @@ def cleanup() -> None:
         p.terminate()
     if os.path.exists(ENDPOINT_FILE):
         os.remove(ENDPOINT_FILE)
+    watchdog_file = os.path.join(RUN_DIR, "watchdog.env")
+    if os.path.exists(watchdog_file):
+        try:
+            os.remove(watchdog_file)
+        except OSError:
+            pass
 
 
 atexit.register(cleanup)
@@ -481,6 +487,17 @@ def watch(
                     log_msg(
                         f"[Watchdog] Max idle time ({max_idle_mins} mins) reached. Terminating."
                     )
+                    array_job_id = os.getenv("SLURM_ARRAY_JOB_ID")
+                    if array_job_id:
+                        log_msg(
+                            f"[Watchdog] Cancelling remaining tasks for job array {array_job_id}..."
+                        )
+                        try:
+                            subprocess.run(["scancel", array_job_id])
+                        except Exception as e:
+                            log_msg(
+                                f"[Watchdog] Warning: Failed to scancel array {array_job_id}: {e}"
+                            )
                     break
             else:
                 if idle_mins > 0:

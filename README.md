@@ -31,17 +31,19 @@ This repository contains scripts to start an automatically expiring vLLM instanc
 
 ### 1. Start the vLLM Server and Proxy
 **Via Terminal:**
-From the login node, simply run the unified startup script. You can optionally pass the model key as an argument (defaults to `mistral-large`):
+From the login node, simply run the unified startup script. You can optionally pass the model key as an argument (defaults to `mistral-large`), override the time limit, or request a sequential job array:
 
 ```bash
-./bin/start.sh mistral-large   # or 'smollm-cpu'
+./bin/start.sh mistral-large                       # single job
+./bin/start.sh mistral-large --time 08:00:00       # override walltime limit
+./bin/start.sh mistral-large --array 1-5           # sequential job array (5 consecutive jobs)
 ```
 
 **Via Python API (Jupyter Notebooks):**
 ```python
 from src.api import SlurmLLMFleet
 
-fleet = SlurmLLMFleet(model="smollm-cpu")
+fleet = SlurmLLMFleet(model="smollm-cpu", array="1-5")
 fleet.start(wait=True)
 client = fleet.get_openai_client()
 ```

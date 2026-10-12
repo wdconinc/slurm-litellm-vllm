@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - name: pytest (offline tests only; the others need a live endpoint or a real cluster)
-        run: uvx --with requests --with pyyaml pytest -q tests/test_job_metrics.py tests/test_start_time.py
+        run: uvx --with requests --with pyyaml pytest -q tests/test_job_metrics.py tests/test_start_time.py tests/test_start_array.py
       - name: shellcheck the CI scripts
         run: shellcheck ci/slurm/e2e.sh
 

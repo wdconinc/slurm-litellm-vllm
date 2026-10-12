@@ -23,8 +23,15 @@ class SlurmLLMFleet:
         fleet.stop()
     """
 
-    def __init__(self, model: str = "mistral-large"):
+    def __init__(
+        self,
+        model: str = "mistral-large",
+        time_limit: Optional[str] = None,
+        array: Optional[str] = None,
+    ):
         self.model = model
+        self.time_limit = time_limit
+        self.array = array
         self.job_id: Optional[str] = None
         self.endpoint_file: Optional[str] = None
         self.api_base: Optional[str] = None
@@ -33,7 +40,9 @@ class SlurmLLMFleet:
     def start(self, wait: bool = True) -> None:
         """Submits the Slurm job and optionally blocks until the Ray cluster and vLLM are online."""
         print(f"🚀 Starting SlurmLLM backend for {self.model}...")
-        self.job_id = submit_job(self.model)
+        self.job_id = submit_job(
+            self.model, time_limit=self.time_limit, array_spec=self.array
+        )
 
         if wait:
             self.endpoint_file = monitor_job(self.job_id)

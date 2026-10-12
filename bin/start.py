@@ -124,6 +124,26 @@ def run_preflight_checks(model_key: str, config: dict) -> None:
     print("[Preflight] Validation complete.\n")
 
 
+def normalize_array_spec(spec: str) -> str:
+    """Normalize a Slurm job array specification to ensure sequential execution (%1).
+
+    Accepts:
+      - Integer count N (e.g. 5 or "5") -> "1-5%1"
+      - Task ranges (e.g. "1-5", "0-4") -> "1-5%1", "0-4%1"
+      - Task lists (e.g. "1,2,3") -> "1,2,3%1"
+      - Existing array specs with concurrency (e.g. "1-5%1") -> "1-5%1" (enforcing %1)
+    """
+    spec = spec.strip()
+    if not spec:
+        return spec
+    if spec.isdigit():
+        return f"1-{spec}%1"
+    if "%" in spec:
+        base = spec.split("%", 1)[0]
+        return f"{base}%1"
+    return f"{spec}%1"
+
+
 def pop_time_arg(argv: list) -> tuple:
     """Split `--time VALUE` / `--time=VALUE` out of `argv`; return (time or None, remaining args).
 
@@ -146,7 +166,35 @@ def pop_time_arg(argv: list) -> tuple:
     return time_limit, rest
 
 
-def submit_job(model_key: str, time_limit: Optional[str] = None) -> Optional[str]:
+def pop_array_arg(argv: list) -> tuple:
+    """Split `--array VALUE` / `--array=VALUE` out of `argv`; return (normalized array or None, remaining args).
+
+    To ensure array jobs run sequentially, a concurrency limit of %1 is enforced
+    (e.g. 1-5 becomes 1-5%1, or an integer N becomes 1-N%1)."""
+    rest, array_spec, i = [], None, 0
+    while i < len(argv):
+        arg = argv[i]
+        if arg == "--array":
+            if i + 1 >= len(argv):
+                print("Error: --array needs a value, e.g. --array 1-5 or --array 5")
+                sys.exit(1)
+            array_spec, i = argv[i + 1], i + 2
+            continue
+        if arg.startswith("--array="):
+            array_spec = arg.split("=", 1)[1]
+        else:
+            rest.append(arg)
+        i += 1
+    if array_spec is not None:
+        array_spec = normalize_array_spec(array_spec)
+    return array_spec, rest
+
+
+def submit_job(
+    model_key: str,
+    time_limit: Optional[str] = None,
+    array_spec: Optional[str] = None,
+) -> Optional[str]:
     import yaml
 
     config_path = os.path.join(os.path.dirname(__file__), "..", "config", "models.yaml")
@@ -176,6 +224,11 @@ def submit_job(model_key: str, time_limit: Optional[str] = None) -> Optional[str
     if time_limit:
         # --time on the command line wins over the profile's slurm.time (default 04:00:00).
         slurm_overrides["time"] = time_limit
+    if array_spec:
+        # --array on the command line wins over the profile's slurm.array.
+        slurm_overrides["array"] = normalize_array_spec(array_spec)
+    elif "array" in slurm_overrides:
+        slurm_overrides["array"] = normalize_array_spec(str(slurm_overrides["array"]))
 
     # Run Preflight Validation
     run_preflight_checks(model_key, config)
@@ -225,7 +278,8 @@ def monitor_job(job_id: Optional[str]) -> str:
         os.remove(endpoint_file)
 
     start_time = time.time()
-    status = ""
+    status_display = ""
+    statuses = []
 
     try:
         while not os.path.exists(endpoint_file):
@@ -236,17 +290,28 @@ def monitor_job(job_id: Optional[str]) -> str:
                     capture_output=True,
                     text=True,
                 )
-                status = squeue_res.stdout.strip()
+                statuses = [
+                    s.strip() for s in squeue_res.stdout.splitlines() if s.strip()
+                ]
 
-                if not status:
+                if not statuses:
                     print(
                         f"\n❌ Error: Slurm job {job_id} is no longer in the queue. It likely failed."
                     )
-                    print(f"Please check vllm_{job_id}.log for details.")
+                    print(f"Please check vllm_{job_id}*.log for details.")
                     sys.exit(1)
 
+                if len(statuses) == 1:
+                    status_display = statuses[0]
+                elif any(s == "RUNNING" for s in statuses):
+                    running_count = sum(1 for s in statuses if s == "RUNNING")
+                    pending_count = sum(1 for s in statuses if s == "PENDING")
+                    status_display = f"RUNNING ({running_count} running, {pending_count} pending in array)"
+                else:
+                    status_display = f"{statuses[0]} ({len(statuses)} tasks in array)"
+
                 sys.stdout.write(
-                    f"\r⏳ Waiting for endpoint.env... Job {job_id} is [ {status} ] (Elapsed: {elapsed}s)   "
+                    f"\r⏳ Waiting for endpoint.env... Job {job_id} is [ {status_display} ] (Elapsed: {elapsed}s)   "
                 )
                 sys.stdout.flush()
             else:
@@ -257,7 +322,10 @@ def monitor_job(job_id: Optional[str]) -> str:
 
             time.sleep(5)
     except KeyboardInterrupt:
-        if job_id and status == "PENDING":
+        if job_id and (
+            status_display == "PENDING"
+            or (statuses and all(s == "PENDING" for s in statuses))
+        ):
             print(
                 f"\n[Monitor] Caught KeyboardInterrupt. Canceling pending job {job_id}..."
             )
@@ -265,7 +333,7 @@ def monitor_job(job_id: Optional[str]) -> str:
             sys.exit(0)
         else:
             print(
-                f"\n[Monitor] Caught KeyboardInterrupt. Job {job_id} is {status or 'in an unknown state'}."
+                f"\n[Monitor] Caught KeyboardInterrupt. Job {job_id} is {status_display or 'in an unknown state'}."
             )
             if job_id:
                 print(f"Run 'scancel {job_id}' manually if you wish to terminate it.")
@@ -353,12 +421,22 @@ def watch_status(job_id: Optional[str], compute_ip: str) -> None:
         if job_id:
             try:
                 squeue_res = subprocess.run(
-                    ["squeue", "-h", "-j", job_id, "-o", "%L"],
+                    ["squeue", "-h", "-j", job_id, "-o", "%T %L"],
                     capture_output=True,
                     text=True,
                 )
-                if squeue_res.stdout.strip():
-                    time_left = squeue_res.stdout.strip()
+                lines = [
+                    line.strip()
+                    for line in squeue_res.stdout.splitlines()
+                    if line.strip()
+                ]
+                running_lines = [line for line in lines if line.startswith("RUNNING")]
+                if running_lines:
+                    parts = running_lines[0].split(None, 1)
+                    time_left = parts[1] if len(parts) > 1 else "Unknown"
+                elif lines:
+                    parts = lines[0].split(None, 1)
+                    time_left = parts[1] if len(parts) > 1 else "Unknown"
             except Exception:
                 pass
 
@@ -380,14 +458,59 @@ def watch_status(job_id: Optional[str], compute_ip: str) -> None:
             time_left = "Unknown"
             if job_id:
                 squeue_res = subprocess.run(
-                    ["squeue", "-h", "-j", job_id, "-o", "%L"],
+                    ["squeue", "-h", "-j", job_id, "-o", "%T %L"],
                     capture_output=True,
                     text=True,
                 )
-                time_left = squeue_res.stdout.strip()
-                if not time_left:
+                lines = [
+                    line.strip()
+                    for line in squeue_res.stdout.splitlines()
+                    if line.strip()
+                ]
+                if not lines:
                     print(f"\n[Monitor] Job {job_id} is no longer running.")
                     break
+
+                running_lines = [line for line in lines if line.startswith("RUNNING")]
+                if running_lines:
+                    parts = running_lines[0].split(None, 1)
+                    active_time = parts[1] if len(parts) > 1 else "Unknown"
+                    pending_count = sum(
+                        1 for line in lines if line.startswith("PENDING")
+                    )
+                    if pending_count > 0:
+                        time_left = f"{active_time} (+{pending_count} queued in array)"
+                    else:
+                        time_left = active_time
+                else:
+                    parts = lines[0].split(None, 1)
+                    state = parts[0]
+                    time_left = f"[{state}] ({len(lines)} tasks in array)"
+
+            # Detect transition to next array task (updated endpoint IP)
+            endpoint_file = os.path.join(
+                os.path.dirname(__file__), "..", "run", "endpoint.env"
+            )
+            if os.path.exists(endpoint_file):
+                try:
+                    with open(endpoint_file, "r") as f:
+                        for line in f:
+                            if "OPENAI_API_BASE" in line:
+                                api_base = line.split("=", 1)[1].strip().strip('"')
+                                new_ip = api_base.split("//")[1].split(":")[0]
+                                if (
+                                    new_ip
+                                    and new_ip != compute_ip
+                                    and new_ip != "<COMPUTE_NODE_IP>"
+                                ):
+                                    compute_ip = new_ip
+                                    print(
+                                        "\n\n[Monitor] Next array job task is now active!"
+                                    )
+                                    print_success(endpoint_file)
+                                break
+                except Exception:
+                    pass
 
             active_reqs = 0
             metrics_available = False
@@ -457,7 +580,7 @@ def watch_status(job_id: Optional[str], compute_ip: str) -> None:
 
 def main() -> None:
     if len(sys.argv) > 1 and sys.argv[1] in ("-h", "--help"):
-        print("Usage: ./bin/start.sh [MODEL_KEY] [--time TIME]")
+        print("Usage: ./bin/start.sh [MODEL_KEY] [--time TIME] [--array ARRAY]")
         print("\nDescription:")
         print(
             "  Submits a vLLM backend to the Slurm queue, monitors its initialization,"
@@ -468,14 +591,17 @@ def main() -> None:
             "  --time TIME   Slurm time limit for the job (e.g. 08:00:00 or 1-00:00:00),"
         )
         print("                overriding the profile's slurm.time in models.yaml.")
+        print("  --array ARRAY Slurm job array specification (e.g. 1-5, 5, or 1-5%1),")
+        print("                overriding the profile's slurm.array in models.yaml.")
+        print("                Runs tasks sequentially (%1 concurrency).")
         print("\nAvailable Models (configured in config/models.yaml):")
-
-        import yaml
 
         config_path = os.path.join(
             os.path.dirname(__file__), "..", "config", "models.yaml"
         )
         try:
+            import yaml
+
             with open(config_path, "r") as f:
                 data = yaml.safe_load(f)
             models = [k for k in data.keys() if k != "defaults"]
@@ -491,11 +617,14 @@ def main() -> None:
         sys.exit(0)
 
     time_limit, args = pop_time_arg(sys.argv[1:])
+    array_spec, args = pop_array_arg(args)
     model_key = args[0] if args else "mistral-large"
     print(f"Submitting vLLM Slurm job for model: {model_key}...")
     if time_limit:
         print(f"Requested time limit: {time_limit}")
-    job_id = submit_job(model_key, time_limit)
+    if array_spec:
+        print(f"Requested job array: {array_spec}")
+    job_id = submit_job(model_key, time_limit, array_spec)
     endpoint_file = monitor_job(job_id)
     compute_ip = print_success(endpoint_file)
     watch_status(job_id, compute_ip)

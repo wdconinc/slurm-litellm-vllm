@@ -30,4 +30,6 @@ fi
 MODEL_KEY=${1:-mistral-large}
 
 # Execute the Python Orchestrator
-python -u "${SLURM_SUBMIT_DIR}/src/orchestrator.py" "$MODEL_KEY"
+# exec so the orchestrator (not this shell) receives Slurm's SIGTERM at the time limit and can run
+# its cleanup, which removes run/endpoint.env.
+exec python -u "${SLURM_SUBMIT_DIR}/src/orchestrator.py" "$MODEL_KEY"
