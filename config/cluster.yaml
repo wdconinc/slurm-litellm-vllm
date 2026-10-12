@@ -37,7 +37,16 @@ partitions:
     cpus_per_node: 48
     mem_gb: 1500
     preemptible: true
-    notes: "NVSwitch, AVX512 CPU"
+    notes: "NVSwitch, AVX512 CPU; owner accounts only (not def-wdconinc)"
+  livi-b:
+    nodes: 1
+    gpu_type: "V100"
+    gpus_per_node: 16
+    gpu_mem_gb: 32
+    cpus_per_node: 48
+    mem_gb: 1500
+    preemptible: true
+    notes: "Same node as livi (g338); open backfill, preempted by livi owners after 1h (CANCEL, no requeue)"
   agro:
     nodes: 2
     gpu_type: "A30"

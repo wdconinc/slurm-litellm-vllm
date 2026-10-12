@@ -141,9 +141,11 @@ leanstral-1.5:
     args:
       - "--enable-auto-tool-choice"
       - "--tool-call-parser mistral"
-      - "--tensor-parallel-size 4"
+      - "--tensor-parallel-size 2"
+      - "--pipeline-parallel-size 2"
       - "--quantization fp8"
-      - "--max-model-len 65536"
+      - "--kv-cache-dtype fp8"
+      - "--max-model-len 131072"
       - "--gpu-memory-utilization 0.90"
       - "--trust-remote-code"
 
@@ -200,3 +202,48 @@ qwen-32b:
       - "--trust-remote-code"
       - "--enable-auto-tool-choice"
       - "--tool-call-parser hermes"
+
+# --- livi (16x V100 32GB, NVSwitch, single node) ----------------------------------------------
+# Our account (def-wdconinc) is NOT allowed on `livi` itself (owner accounts only); `livi-b` is the
+# open backfill partition on the same node (g338). Jobs there are PREEMPTED (cancelled, not requeued)
+# when owners need the GPUs, after a 1h PreemptExemptTime. cpus_per_task is kept low because the
+# node's 48 CPUs are shared. V100 (Volta): no fp8, no bf16 -> --dtype float16, no --quantization fp8.
+llama-70b-livi:
+  fullname: "meta-llama/Llama-3.1-70B-Instruct"
+  slurm:
+    partition: "livi-b"
+    nodes: 1
+    gpus_per_node: 8
+    cpus_per_task: 8
+    mem: "128G"
+    time: "04:00:00"
+  vllm:
+    args:
+      - "--tensor-parallel-size 8"
+      - "--dtype float16"
+      - "--max-model-len 32768"
+      - "--gpu-memory-utilization 0.90"
+      - "--enable-prefix-caching"
+
+# EXPERIMENTAL: the Leanstral-1.5 checkpoint is fp8 (~112 GiB); Volta has no fp8 kernels and the MLA/MoE
+# kernels may not support sm70, so this may fail at load. TP8 fp16 would not fit anyway if the weights
+# were upcast (~240 GB over 8x32 GB), hence 16 GPUs; the node has only ~5 free GPUs at times, so check
+# `sinfo`/`scontrol show node g338` first. Use this to find out how it fails, then decide on an AWQ build.
+leanstral-1.5-livi:
+  fullname: "mistralai/Leanstral-1.5-119B-A6B"
+  slurm:
+    partition: "livi-b"
+    nodes: 1
+    gpus_per_node: 16
+    cpus_per_task: 8
+    mem: "400G"
+    time: "04:00:00"
+  vllm:
+    args:
+      - "--enable-auto-tool-choice"
+      - "--tool-call-parser mistral"
+      - "--tensor-parallel-size 16"
+      - "--dtype float16"
+      - "--max-model-len 65536"
+      - "--gpu-memory-utilization 0.90"
+      - "--trust-remote-code"
